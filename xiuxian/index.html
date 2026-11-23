@@ -1,0 +1,1762 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>一键成仙 · 欧皇之路</title>
+<meta name="description" content="一键成仙：狂点抽卡、三合一自动合成连锁、16 件秘宝收集、渡劫飞升。无失败，无终点。">
+<meta name="theme-color" content="#07060d">
+<meta name="color-scheme" content="dark">
+<meta property="og:type" content="website">
+<meta property="og:title" content="一键成仙 · 欧皇之路">
+<meta property="og:description" content="狂点抽卡、三合一自动合成连锁、16 件秘宝收集、渡劫飞升。无失败，无终点。">
+<meta name="twitter:card" content="summary">
+<!-- 没有写 og:image：单文件游戏里没有图片资源，指向一个不存在的路径
+     会让分享卡片变成一张破图，比没有预览图更糟。
+     上线后若备了封面图，在这里补一行绝对路径即可。 -->
+<!-- 加到主屏后全屏运行：回访路径从「开浏览器、找网址」变成「点一个图标」，
+     而且没有地址栏占位，竖屏能多出一行内容。 -->
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="一键成仙">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b0917'/%3E%3Ctext x='32' y='45' font-size='38' text-anchor='middle'%3E%E2%98%AF%EF%B8%8F%3C/text%3E%3C/svg%3E">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+/* iOS Safari 从 10 开始直接忽略 user-scalable=no，所以光靠 viewport 拦不住双击缩放：
+   狂点大按钮时任意两次相邻的点击都会被当成双击，页面当场缩放 —— 核心玩法直接毁了。
+   touch-action:manipulation 只禁双击缩放，保留单击与滚动（面板还要滚）。 */
+html{touch-action:manipulation}
+:root{
+  --bg:#07060d; --bg2:#0e0c1a; --panel:#171429; --line:rgba(255,215,140,.14);
+  --gold:#ffd479; --gold2:#ffb03a; --ink:#e9e4f5; --dim:#8b84a6;
+  --t0:#9aa4b2; --t1:#5ee08a; --t2:#3fbdf8; --t3:#b487ff; --t4:#ffc33d;
+  --t5:#ff6f8b; --t6:#ffef6b; --t7:#8ff5ff; --t8:#ff9cf0; --t9:#7dff6b;
+  --t10:#ff5f3d; --t11:#ffffff;
+}
+html,body{height:100%}
+body{
+  background:
+    radial-gradient(1200px 700px at 50% -10%,rgba(255,180,60,.10),transparent 60%),
+    radial-gradient(900px 600px at 10% 110%,rgba(120,80,255,.12),transparent 60%),
+    radial-gradient(900px 600px at 95% 90%,rgba(255,60,140,.08),transparent 60%),
+    linear-gradient(180deg,#0a0813,#07060d 60%,#05040a);
+  color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  overflow:hidden;user-select:none;
+  /* 手机上下拉会触发刷新或橡皮筋，一刷新就把玩家抽离局中。 */
+  overscroll-behavior:none;
+}
+#stars{position:fixed;inset:0;pointer-events:none;opacity:.55;
+  background-image:radial-gradient(1px 1px at 20% 30%,#fff,transparent),radial-gradient(1px 1px at 70% 15%,#ffe,transparent),radial-gradient(1px 1px at 40% 70%,#fff,transparent),radial-gradient(1.5px 1.5px at 85% 55%,#ffd,transparent),radial-gradient(1px 1px at 10% 85%,#fff,transparent),radial-gradient(1px 1px at 60% 90%,#fff,transparent),radial-gradient(1px 1px at 90% 25%,#fff,transparent),radial-gradient(1px 1px at 33% 12%,#fff,transparent);
+  animation:twinkle 5s ease-in-out infinite alternate}
+@keyframes twinkle{from{opacity:.25}to{opacity:.7}}
+#fx{position:fixed;inset:0;pointer-events:none;z-index:70}
+#shake{position:fixed;inset:0;display:flex;flex-direction:column;will-change:transform}
+
+/* ============ 顶栏 ============ */
+#top{display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg,#1e1832,#0c0a16);flex:0 0 auto;z-index:20}
+.logo{font-size:19px;font-weight:900;letter-spacing:2px;
+  background:linear-gradient(92deg,#fff3c4,#ffd479,#ff9d3a,#ffe9a8);-webkit-background-clip:text;background-clip:text;color:transparent;
+  text-shadow:0 0 26px rgba(255,180,60,.35);white-space:nowrap}
+.logo small{display:block;font-size:9px;letter-spacing:1px;color:#7e769b;font-weight:600;-webkit-text-fill-color:#7e769b}
+.stats{display:flex;gap:8px;flex:1;flex-wrap:wrap;justify-content:center}
+.stat{background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:10px;padding:4px 11px;min-width:88px;text-align:center}
+.stat b{display:block;font-size:15px;font-variant-numeric:tabular-nums;line-height:1.25;color:var(--gold)}
+.stat span{font-size:9.5px;color:var(--dim);letter-spacing:.5px}
+.stat.g b{color:#8ff5ff}
+.tbtn{background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--ink);border-radius:9px;
+  padding:7px 11px;font-size:12px;cursor:pointer;transition:.15s;white-space:nowrap}
+.tbtn:hover{background:rgba(255,212,121,.16);border-color:var(--gold)}
+#btnAscend{border-color:rgba(255,120,200,.4);color:#ffb8ec;box-shadow:0 0 0 rgba(255,120,200,0)}
+#btnAscend.rdy{animation:pulseA 1.5s infinite;background:rgba(255,120,200,.14)}
+@keyframes pulseA{0%,100%{box-shadow:0 0 0 rgba(255,120,200,0)}50%{box-shadow:0 0 18px rgba(255,120,200,.6)}}
+
+/* ============ 主体 ============ */
+#main{flex:1;display:flex;gap:12px;padding:12px;min-height:0}
+.col{display:flex;flex-direction:column;gap:10px;min-height:0}
+#left{flex:1.15}
+#right{flex:1;max-width:430px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+  box-shadow:0 10px 40px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.05)}
+.chead{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--line);
+  font-size:12.5px;font-weight:800;letter-spacing:1px;color:var(--gold)}
+.chead em{font-style:normal;font-size:10.5px;color:var(--dim);font-weight:600}
+
+/* ---- 抽卡区 ---- */
+#drawZone{flex:0 0 auto;padding:14px 12px 12px;display:flex;flex-direction:column;align-items:center;gap:10px;position:relative;overflow:hidden}
+#drawZone::before{content:"";position:absolute;top:-140px;left:50%;transform:translateX(-50%);width:420px;height:280px;
+  background:radial-gradient(closest-side,rgba(255,180,60,.20),transparent);pointer-events:none}
+#reel{width:100%;max-width:330px;height:54px;border-radius:12px;border:1px solid var(--line);
+  background:linear-gradient(180deg,rgba(0,0,0,.5),rgba(255,255,255,.03));overflow:hidden;position:relative;flex:0 0 auto}
+#reelIn{display:flex;height:100%;align-items:center;will-change:transform}
+.rcell{flex:0 0 54px;height:54px;display:flex;align-items:center;justify-content:center;font-size:26px;opacity:.75}
+#reel::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(90deg,rgba(7,6,13,.95),transparent 22%,transparent 78%,rgba(7,6,13,.95))}
+#reelMark{position:absolute;left:50%;top:0;bottom:0;width:56px;transform:translateX(-50%);border-radius:9px;
+  border:2px solid var(--gold);box-shadow:0 0 18px rgba(255,212,121,.5),inset 0 0 18px rgba(255,212,121,.2);pointer-events:none}
+
+#bigWrap{position:relative;width:190px;height:190px;flex:0 0 auto}
+#comboRing{position:absolute;inset:0;transform:rotate(-90deg)}
+#bigBtn{position:absolute;inset:14px;border-radius:50%;border:none;cursor:pointer;
+  background:radial-gradient(circle at 32% 28%,#fff6d8,#ffcf6a 32%,#ff9e2c 62%,#c96a10 100%);
+  box-shadow:0 12px 34px rgba(255,150,40,.42),inset 0 -8px 20px rgba(140,60,0,.5),inset 0 8px 18px rgba(255,255,255,.5);
+  color:#3a1f00;font-size:38px;font-weight:900;letter-spacing:4px;text-shadow:0 2px 0 rgba(255,255,255,.5);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;transition:transform .07s}
+#bigBtn small{font-size:11px;letter-spacing:2px;font-weight:800;opacity:.72;margin-top:2px}
+#bigBtn:active{transform:scale(.94)}
+/* 首次进入的召唤。开场弹窗关掉之后，玩家面对的是一个完全静止的首屏 ——
+   按钮再大也需要一次主动邀请。点下第一下就永久撤掉，绝不干扰后续。
+   用 ::before 而不新增元素：窄屏布局刚逐项量过，不再往里面塞占位的节点。 */
+#bigWrap.guide::before{
+  content:"";position:absolute;inset:0;border-radius:50%;pointer-events:none;
+  border:2px solid rgba(255,212,121,.75);animation:callout 1.5s ease-out infinite
+}
+@keyframes callout{0%{transform:scale(.9);opacity:.85}100%{transform:scale(1.2);opacity:0}}
+#bigBtn.hit{animation:hit .18s ease}
+@keyframes hit{0%{transform:scale(.9)}55%{transform:scale(1.07)}100%{transform:scale(1)}}
+#comboTxt{position:absolute;top:-4px;right:-8px;font-size:13px;font-weight:900;color:#fff;
+  background:linear-gradient(135deg,#ff4d6d,#ff9d3a);padding:3px 9px;border-radius:20px;
+  box-shadow:0 4px 14px rgba(255,80,110,.5);opacity:0;transform:scale(.6);transition:.15s}
+#comboTxt.on{opacity:1;transform:scale(1)}
+.drow{display:flex;gap:8px;width:100%;max-width:330px}
+.dbtn{flex:1;padding:9px 6px;border-radius:11px;border:1px solid var(--line);cursor:pointer;font-size:12.5px;font-weight:800;
+  background:rgba(255,255,255,.05);color:var(--ink);transition:.15s}
+.dbtn:hover:not(:disabled){background:rgba(255,212,121,.16);border-color:var(--gold)}
+.dbtn:disabled{opacity:.35;cursor:not-allowed}
+.dbtn.on{background:linear-gradient(135deg,rgba(94,224,138,.25),rgba(63,189,248,.2));border-color:#5ee08a;color:#b8ffd0}
+#pityBar{width:100%;max-width:330px;height:16px;border-radius:9px;background:rgba(0,0,0,.45);border:1px solid var(--line);
+  position:relative;overflow:hidden;flex:0 0 auto}
+#pityFill{height:100%;width:0%;background:linear-gradient(90deg,#7a5cff,#ffc33d);transition:width .2s}
+#pityTxt{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:9.5px;letter-spacing:.5px;
+  color:#fff;text-shadow:0 1px 3px #000;font-weight:700}
+
+/* ---- 洞天棋盘 ---- */
+#boardCard{flex:1;display:flex;flex-direction:column;min-height:170px}
+#board{flex:1;display:grid;grid-template-columns:repeat(auto-fill,minmax(66px,1fr));gap:7px;padding:10px;overflow-y:auto;align-content:start}
+.slot{aspect-ratio:1;border-radius:11px;border:1px dashed rgba(255,255,255,.09);background:rgba(255,255,255,.02);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;overflow:hidden;min-height:56px}
+.slot.f{border-style:solid}
+.slot .em{font-size:26px;line-height:1;filter:drop-shadow(0 2px 5px rgba(0,0,0,.6))}
+.slot .nm{font-size:8.5px;margin-top:3px;font-weight:700;letter-spacing:.3px;opacity:.92}
+.slot.pop{animation:pop .3s cubic-bezier(.3,1.7,.5,1)}
+@keyframes pop{0%{transform:scale(0) rotate(-25deg);opacity:0}70%{transform:scale(1.18) rotate(6deg)}100%{transform:scale(1) rotate(0);opacity:1}}
+.slot.mg{animation:mg .34s ease}
+@keyframes mg{0%{transform:scale(1)}40%{transform:scale(1.32);filter:brightness(2.2)}100%{transform:scale(1)}}
+.slot.hi{box-shadow:0 0 0 2px var(--gold),0 0 22px rgba(255,212,121,.45)}
+.shine{position:absolute;inset:0;background:linear-gradient(115deg,transparent 35%,rgba(255,255,255,.55) 50%,transparent 65%);
+  transform:translateX(-120%);animation:shine 2.4s linear infinite}
+@keyframes shine{to{transform:translateX(120%)}}
+.rainbow{animation:rb 2.4s linear infinite}
+@keyframes rb{0%{filter:hue-rotate(0)}100%{filter:hue-rotate(360deg)}}
+
+/* ---- 右侧标签 ---- */
+#tabs{display:flex;gap:6px;flex:0 0 auto}
+.tab{flex:1;padding:9px 2px;border-radius:11px 11px 0 0;border:1px solid var(--line);border-bottom:none;cursor:pointer;
+  background:rgba(255,255,255,.03);color:var(--dim);font-size:11.5px;font-weight:800;text-align:center;transition:.15s;position:relative}
+.tab.on{background:var(--panel);color:var(--gold);box-shadow:inset 0 2px 0 var(--gold)}
+.tab .dot{position:absolute;top:5px;right:8px;width:7px;height:7px;border-radius:50%;background:#ff4d6d;display:none;
+  box-shadow:0 0 8px #ff4d6d}
+.tab.alert .dot{display:block;animation:bl 1s infinite}
+@keyframes bl{50%{opacity:.25}}
+#panelWrap{flex:1;min-height:0;border-radius:0 0 14px 14px;overflow:hidden;display:flex}
+#panel{flex:1;overflow-y:auto;padding:10px}
+#panel::-webkit-scrollbar,#board::-webkit-scrollbar{width:6px}
+#panel::-webkit-scrollbar-thumb,#board::-webkit-scrollbar-thumb{background:rgba(255,212,121,.25);border-radius:3px}
+
+.up{display:flex;align-items:center;gap:9px;padding:9px;border-radius:11px;border:1px solid var(--line);
+  background:rgba(255,255,255,.03);margin-bottom:7px;cursor:pointer;transition:.13s}
+.up:hover{background:rgba(255,212,121,.09)}
+.up.no{opacity:.45;cursor:not-allowed}
+.up .ic{font-size:22px;width:32px;text-align:center;flex:0 0 auto}
+.up .bd{flex:1;min-width:0}
+.up .t1{font-size:12.5px;font-weight:800}
+.up .t1 i{font-style:normal;color:var(--gold);font-size:10.5px;margin-left:4px}
+.up .t2{font-size:10px;color:var(--dim);margin-top:2px;line-height:1.35}
+.up .pr{flex:0 0 auto;text-align:right}
+.up .pr b{display:block;font-size:12.5px;color:var(--gold);font-variant-numeric:tabular-nums}
+.up .pr span{font-size:9px;color:var(--dim)}
+.up.max .pr b{color:#5ee08a}
+
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
+.relic{aspect-ratio:.86;border-radius:11px;border:1px solid var(--line);background:rgba(255,255,255,.03);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:3px;cursor:help;position:relative;transition:.15s}
+.relic .re{font-size:22px}
+.relic .rn{font-size:8.5px;font-weight:700;text-align:center;line-height:1.15}
+.relic.lock{opacity:.3;filter:grayscale(1)}
+.relic.lock .re{font-size:20px}
+.relic.own{border-color:rgba(255,212,121,.5);background:linear-gradient(160deg,rgba(255,212,121,.14),rgba(255,255,255,.03));
+  box-shadow:0 0 14px rgba(255,212,121,.18)}
+.relic .lv{position:absolute;top:3px;right:4px;font-size:8.5px;font-weight:900;color:#3a1f00;background:var(--gold);
+  border-radius:8px;padding:0 4px}
+.tip{position:fixed;z-index:90;max-width:230px;padding:8px 10px;border-radius:10px;font-size:11px;line-height:1.5;
+  background:rgba(12,10,22,.97);border:1px solid var(--gold);box-shadow:0 10px 30px rgba(0,0,0,.7);pointer-events:none;display:none}
+.tip b{color:var(--gold)}
+
+.codex{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:10px;margin-bottom:6px;
+  border:1px solid var(--line);background:rgba(255,255,255,.03)}
+.codex.lk{opacity:.32;filter:grayscale(.9)}
+.codex .ce{font-size:22px;width:30px;text-align:center}
+.codex .cb{flex:1}
+.codex .cn{font-size:12px;font-weight:800}
+.codex .cd{font-size:9.5px;color:var(--dim)}
+.codex .cc{font-size:11px;font-variant-numeric:tabular-nums;color:var(--gold);text-align:right}
+
+.quest{padding:9px;border-radius:11px;border:1px solid var(--line);background:rgba(255,255,255,.03);margin-bottom:7px}
+.quest .qt{font-size:12px;font-weight:800;display:flex;justify-content:space-between;gap:6px}
+.quest .qt span{color:var(--gold);font-size:11px;font-variant-numeric:tabular-nums}
+.qbar{height:7px;border-radius:5px;background:rgba(0,0,0,.45);margin-top:6px;overflow:hidden}
+.qbar i{display:block;height:100%;background:linear-gradient(90deg,#5ee08a,#ffc33d);border-radius:5px;transition:width .3s}
+.quest .qr{font-size:10px;color:var(--dim);margin-top:5px}
+.quest.done{border-color:#5ee08a;background:rgba(94,224,138,.1);cursor:pointer}
+.quest.done .qr{color:#5ee08a;font-weight:800}
+
+/* ---- 稀有横幅 ---- */
+#banner{position:fixed;left:0;right:0;top:38%;z-index:80;display:flex;flex-direction:column;align-items:center;
+  pointer-events:none;opacity:0}
+#banner.show{animation:bn 1.9s cubic-bezier(.2,1,.3,1) forwards}
+@keyframes bn{0%{opacity:0;transform:scale(.4) rotate(-9deg)}18%{opacity:1;transform:scale(1.1) rotate(2deg)}
+  28%{transform:scale(1) rotate(0)}72%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1.35) translateY(-40px)}}
+#bnEm{font-size:96px;line-height:1;filter:drop-shadow(0 0 34px currentColor)}
+#bnTier{font-size:34px;font-weight:900;letter-spacing:10px;margin-top:6px;text-shadow:0 0 26px currentColor}
+#bnName{font-size:15px;letter-spacing:5px;color:#fff;opacity:.92;margin-top:2px}
+#bnSub{font-size:11px;letter-spacing:3px;color:var(--gold);margin-top:6px}
+#flash{position:fixed;inset:0;z-index:75;pointer-events:none;background:#fff;opacity:0}
+#flash.go{animation:fl .5s ease-out}
+@keyframes fl{0%{opacity:.6}100%{opacity:0}}
+#rays{position:fixed;left:50%;top:38%;width:900px;height:900px;transform:translate(-50%,-50%);z-index:74;pointer-events:none;opacity:0;
+  background:conic-gradient(from 0deg,transparent 0 6deg,rgba(255,255,255,.16) 6deg 12deg,transparent 12deg 18deg,rgba(255,255,255,.16) 18deg 24deg);
+  border-radius:50%;mask-image:radial-gradient(closest-side,#000 20%,transparent 72%);
+  -webkit-mask-image:radial-gradient(closest-side,#000 20%,transparent 72%)}
+#rays.go{animation:ry 1.7s linear forwards}
+@keyframes ry{0%{opacity:0;transform:translate(-50%,-50%) rotate(0) scale(.5)}20%{opacity:1}
+  100%{opacity:0;transform:translate(-50%,-50%) rotate(150deg) scale(1.2)}}
+
+/* ---- 飘字 / 日志 ---- */
+.ft{position:fixed;z-index:78;font-weight:900;pointer-events:none;text-shadow:0 2px 8px rgba(0,0,0,.85);white-space:nowrap}
+#log{position:fixed;left:14px;bottom:12px;z-index:60;display:flex;flex-direction:column-reverse;gap:4px;pointer-events:none;max-width:330px}
+.li{font-size:11px;padding:5px 10px;border-radius:8px;background:rgba(12,10,22,.85);border:1px solid var(--line);
+  animation:liIn .3s ease,liOut .4s ease 3.6s forwards}
+@keyframes liIn{from{opacity:0;transform:translateX(-24px)}}
+@keyframes liOut{to{opacity:0;transform:translateX(-24px)}}
+
+/* ---- 弹窗 ---- */
+#modal{position:fixed;inset:0;z-index:95;background:rgba(4,3,10,.88);
+  display:none;align-items:center;justify-content:center;padding:20px}
+#modal.on{display:flex}
+#mbox{width:100%;max-width:430px;border-radius:16px;border:1px solid var(--gold);background:linear-gradient(170deg,#1b1730,#0e0c1a);
+  padding:20px;box-shadow:0 24px 70px rgba(0,0,0,.8);animation:pop .3s cubic-bezier(.3,1.6,.5,1);text-align:center}
+#mbox h3{font-size:19px;color:var(--gold);letter-spacing:3px;margin-bottom:10px}
+#mbox .mc{font-size:12.5px;line-height:1.85;color:#cfc8e4;text-align:left;max-height:46vh;overflow-y:auto}
+#mbox .mc b{color:var(--gold)}
+#mbox .mc hr{border:none;border-top:1px solid var(--line);margin:9px 0}
+.mbtns{display:flex;gap:8px;margin-top:16px}
+.mbtn{flex:1;padding:11px;border-radius:11px;border:1px solid var(--line);cursor:pointer;font-size:13px;font-weight:800;
+  background:rgba(255,255,255,.05);color:var(--ink)}
+.mbtn.p{background:linear-gradient(135deg,#ffd479,#ff9d3a);color:#3a1f00;border:none}
+@media (prefers-reduced-motion:reduce){
+  #stars,.shine,.rainbow,#rays,.tab.alert .dot,#btnAscend.rdy{animation:none!important}
+  #banner.show{animation-duration:1s}
+  #flash.go{animation:none}
+}
+@media (max-width:820px){
+  #main{flex-direction:column;padding:8px;gap:8px;overflow-y:auto;-webkit-overflow-scrolling:touch}
+  #left,#right{flex:0 0 auto;max-width:none}
+  #boardCard{flex:0 0 auto}
+  #board{max-height:none;min-height:180px}
+  #panelWrap{min-height:320px;flex:0 0 auto}
+  #panel{max-height:none}
+  #bigWrap{width:150px;height:150px}
+  #bigBtn{font-size:30px}
+  .logo small{display:none}
+  .stats{flex-wrap:nowrap;overflow-x:auto;justify-content:flex-start;scrollbar-width:none}
+  .stats::-webkit-scrollbar{display:none}
+  /* 六项状态必须全部放进一行。它们是主要的进度反馈源，
+     而靠横滑才能看到的数字等于看不到。原尺寸（70px）在 375px 下只能露 4 项。 */
+  .stat{min-width:52px;padding:3px 5px;flex:0 0 auto}
+  .stat b{font-size:12.5px}
+  #bnEm{font-size:64px}#bnTier{font-size:24px;letter-spacing:6px}
+  #log{max-width:56vw;bottom:6px;left:6px}
+  /* 触摸目标敲到 44px。真机量过的尺寸：🔊 36×32、☰ 35×31、渡劫 48×33、
+     十连/自动/清扫 105×38、下方标签页 70×35 —— 全部低于 44px。
+     鼠标能精确命中这么小的目标，手指不能；而这是一个靠狂点支撑的游戏，
+     点不中的代价比其他类型的游戏大得多。只在移动端敲，桌面保持紧凑。
+     注意选择器：抽卡行是 .dbtn、顶栏是 .tbtn，根本没有 .btn 这个类——
+     最早写成 .btn 时这条规则匹配到的元素为零，完全白写。 */
+  .dbtn,.tab{min-height:44px}
+  #btnSound,#btnMenu,#btnAscend{min-width:44px;min-height:44px}
+  .tab{padding:9px 2px}
+  /* 顶栏在窄屏拆成两行，状态项独占第二行。
+     否则 logo 加右侧三个 44px 按钮会把 .stats 挤到只剩 87px 宽，
+     六项状态里有四项被推出视口 —— 这是把触摸目标敲到 44px 时自己引入的，实测到的。 */
+  #top{flex-wrap:wrap;row-gap:6px}
+  .stats{order:9;flex-basis:100%;justify-content:flex-start;gap:6px}
+}
+/* iPhone SE 一代这类 320px 机型：再紧一档，否则最后两项仍会被推出去。 */
+@media (max-width:360px){
+  .stats{gap:4px}
+  .stat{min-width:44px;padding:2px 3px}
+  .stat b{font-size:11.5px}
+  .stat span{font-size:8.5px}
+  .logo{font-size:16px}
+}
+</style>
+</head>
+<body>
+  <div class="ad-slot" data-ad-slot="bannerTop"></div>
+<noscript>
+  <div style="position:fixed;inset:0;z-index:999;display:flex;align-items:center;justify-content:center;
+              background:#07060d;color:#e9e4f5;text-align:center;padding:24px;
+              font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif">
+    <div>
+      <div style="font-size:34px;margin-bottom:14px">☯️</div>
+      <div style="font-size:19px;color:#ffd479;letter-spacing:2px;margin-bottom:10px">一 键 成 仙</div>
+      <div style="font-size:14px;color:#8b84a6;line-height:1.8">
+        本游戏需要 JavaScript。<br>请在浏览器设置里开启后刷新页面。
+      </div>
+    </div>
+  </div>
+</noscript>
+<div id="stars"></div>
+<div id="shake">
+  <div id="top">
+    <div class="logo">一键成仙<small>ONE-TAP ASCENSION</small></div>
+    <div class="stats">
+      <div class="stat"><b id="sCoin">0</b><span>仙缘</span></div>
+      <div class="stat"><b id="sCps">0</b><span>仙缘/秒</span></div>
+      <div class="stat"><b id="sDraw">0</b><span>抽卡次数</span></div>
+      <div class="stat"><b id="sBest">凡品</b><span>最高境界</span></div>
+      <div class="stat g"><b id="sDao">0</b><span>道行</span></div>
+      <div class="stat g"><b id="sLuck">100%</b><span>天命</span></div>
+    </div>
+    <button class="tbtn" id="btnAscend">渡劫</button>
+    <button class="tbtn" id="btnSound">🔊</button>
+    <button class="tbtn" id="btnMenu">☰</button>
+  </div>
+
+  <div id="main">
+    <div class="col" id="left">
+      <div class="card" id="drawZone">
+        <div id="reel"><div id="reelIn"></div><div id="reelMark"></div></div>
+        <div id="bigWrap">
+          <svg id="comboRing" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="46" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="4"/>
+            <circle id="ringFill" cx="50" cy="50" r="46" fill="none" stroke="#ff4d6d" stroke-width="4"
+              stroke-linecap="round" stroke-dasharray="289" stroke-dashoffset="289"/>
+          </svg>
+          <button id="bigBtn">抽<small id="bbSub">点击 / 空格</small></button>
+          <div id="comboTxt">×1</div>
+        </div>
+        <div id="pityBar"><div id="pityFill"></div><div id="pityTxt">保底 0/50</div></div>
+        <div class="drow">
+          <button class="dbtn" id="btn10" disabled>十连抽</button>
+          <button class="dbtn" id="btnAuto" disabled>自动抽卡</button>
+          <button class="dbtn" id="btnSellAll">清扫凡物</button>
+        </div>
+      </div>
+      <div class="card" id="boardCard">
+        <div class="chead"><span>洞 天 · 三 合 一 自 动 升 阶</span><em id="boardInfo">0/15</em></div>
+        <div id="board"></div>
+      </div>
+    </div>
+
+    <div class="col" id="right">
+      <div id="tabs">
+        <div class="tab on" data-t="up">修行<i class="dot"></i></div>
+        <div class="tab" data-t="relic">秘宝<i class="dot"></i></div>
+        <div class="tab" data-t="codex">图鉴<i class="dot"></i></div>
+        <div class="tab" data-t="quest">天命<i class="dot"></i></div>
+        <div class="tab" data-t="dao">道纹<i class="dot"></i></div>
+      </div>
+      <div class="card" id="panelWrap"><div id="panel"></div></div>
+    </div>
+  </div>
+</div>
+
+<canvas id="fx"></canvas>
+<div id="flash"></div>
+<div id="rays"></div>
+<div id="banner">
+  <div id="bnEm">🐉</div><div id="bnTier">仙品</div><div id="bnName">仙符</div><div id="bnSub">天地为之一颤</div>
+</div>
+<div id="log"></div>
+<div class="tip" id="tip"></div>
+<div id="modal"><div id="mbox"><h3 id="mTitle"></h3><div class="mc" id="mBody"></div><div class="mbtns" id="mBtns"></div></div></div>
+
+
+<script>
+/* =====================================================================
+   Web 版启动桩 —— 替代 FB 版的 FBStore 适配层。
+   普通浏览器没有 FBInstant：boot 立即执行游戏主脚本，存档走游戏原生的
+   localStorage 逻辑，submitScore 为空实现。接口与 FB 版保持一致，
+   因此下方启动器脚本无需任何改动。
+   ===================================================================== */
+window.FBStore = {
+  inFB: false,
+  boot: function (startFn) { startFn(); },
+  submitScore: function () {}
+};
+</script>
+
+<script type="text/plain" id="game-src">
+"use strict";
+/* ==================================================================
+   一键成仙 — 无脑抽卡 · 自动合成 · 运气为王
+   ================================================================== */
+
+/* ---------------- 境界（12 阶） ---------------- */
+/* 为何停在 12 阶（试过加到 16 阶，实测失败，已回退）：
+   渡劫门槛是 min(MAXT, 7+floor(ascends/2))，所以多四阶能把门槛递进期从 8 个周目
+   拉到 16 个——听起来是白赚的深度，但三合一叠上 34% 的跃升概率意味着每高一阶的
+   成本是超线性的：台架里 45 分钟的周目数从 61 掉到 16，平均耗时 42 秒 → 115 秒，
+   末周目 448 秒且仍在陡增 —— 直接拆掉了「无脑快节奏」这个核心手感。
+   更致命的是「三尊最高阶归元」：需要三个 MAXT 物品，11 阶时 30 分钟能触发 17 次，
+   15 阶时 45 分钟一次都没有（最高只摸到 14 阶）—— 等于用一个死代码换掉了另一个。
+   12 阶是归元能稳定发生的甜点位，不要再动。 */
+const TIERS = [
+  {n:'凡品', i:'🪨', item:'顽石',     c:'#9aa4b2', v:1},
+  {n:'良品', i:'🌿', item:'灵草',     c:'#5ee08a', v:5},
+  {n:'上品', i:'💧', item:'玉露',     c:'#3fbdf8', v:25},
+  {n:'极品', i:'🔮', item:'灵珠',     c:'#b487ff', v:130},
+  {n:'灵品', i:'🔥', item:'丹火',     c:'#ffc33d', v:700},
+  {n:'仙品', i:'⚜️', item:'仙符',     c:'#ff6f8b', v:4000},
+  {n:'神品', i:'🐉', item:'龙鳞',     c:'#ffef6b', v:24000},
+  {n:'混沌', i:'🌌', item:'混沌卵',   c:'#8ff5ff', v:150000},
+  {n:'鸿蒙', i:'☯️', item:'鸿蒙印',   c:'#ff9cf0', v:1e6},
+  {n:'无极', i:'🌟', item:'无极星',   c:'#7dff6b', v:7e6},
+  {n:'大罗', i:'🕉️', item:'大罗金丹', c:'#ff5f3d', v:5e7},
+  {n:'道祖', i:'👑', item:'道祖之冠', c:'#ffffff', v:4e8},
+];
+const MAXT = TIERS.length - 1;
+/* 每阶一条专属贺词，索引 t-4（灵品起才配横幅）。条数比境界数多是故意的：
+   早先只有 6 条，高于神品的混沌/鸿蒙/无极/大罗/道祖全部共用最后一条，
+   抽到道祖和抽到灵品的横幅文案一模一样，消掉了最稀有瞬间的仪式感。 */
+const SUBS = ['天地为之一颤','紫气东来三万里','此物不该出现在此界','万道齐鸣，众生俯首','混沌初开，唯我独尊','恭喜道友，就此飞升',
+  '诸天万界，尽入眼底','一气化三清，玄之又玄','时间在此处失去意义','无始无终，不生不灭','大道无形，你已是道'];
+
+/* ---------------- 秘宝（16 件 · 永久被动） ---------------- */
+const RELICS = [
+  {k:'zy', e:'🧿', n:'转运珠',   d:'天命 +12%',            f:b=>b.luck+=.12},
+  {k:'sy', e:'🍀', n:'四叶草',   d:'稀有权重 +18%',        f:b=>b.rare+=.18},
+  {k:'jl', e:'🐟', n:'锦鲤',     d:'连击上限 +15',         f:b=>b.cmax+=15},
+  {k:'jb', e:'💰', n:'聚宝盆',   d:'仙缘获取 +35%',        f:b=>b.coin+=.35},
+  {k:'sl', e:'⏳', n:'流沙漏',   d:'连击窗口 +45%',        f:b=>b.win+=.45},
+  {k:'dj', e:'🪄', n:'点金杖',   d:'合成时 20% 额外掉落',  f:b=>b.mdrop+=.20},
+  {k:'zc', e:'🔔', n:'招财铃',   d:'每秒收益 +45%',        f:b=>b.cps+=.45},
+  {k:'tm', e:'🎲', n:'天命骰',   d:'8% 概率一抽变两抽',    f:b=>b.dbl+=.08},
+  {k:'ts', e:'📜', n:'天书',     d:'保底所需 −20%',        f:b=>b.pity-=.20},
+  {k:'dt', e:'🗝️', n:'洞天钥',   d:'洞天格子 +3',          f:b=>b.slot+=3},
+  {k:'yg', e:'🪞', n:'因果镜',   d:'12% 合成返还 1 个材料',  f:b=>b.free+=.12},
+  {k:'lj', e:'⚡', n:'雷劫符',   d:'6% 暴击抽（境界+2）',  f:b=>b.crit+=.06},
+  {k:'ty', e:'🌙', n:'太阴玉',   d:'离线收益 +150%',       f:b=>b.off+=1.5},
+  {k:'tj', e:'☀️', n:'太阳精',   d:'自动抽卡速度 +40%',    f:b=>b.auto+=.40},
+  {k:'rs', e:'🦌', n:'瑞兽',     d:'每 60 抽白送一次十连', f:b=>b.gift+=1},
+  {k:'xg', e:'🐢', n:'玄龟甲',   d:'自动出售价格 ×4',      f:b=>b.sell+=3},
+];
+
+/* ---------------- 修行（升级） ---------------- */
+const UPS = [
+  {k:'luck', i:'🌠', n:'观星术',   d:()=>`天命 +8% — 抽卡期望×${evMul().toFixed(1)}`, base:120,   g:1.75, max:60},
+  {k:'slot', i:'🏔️', n:'开辟洞天', d:()=>'洞天格子 +1',                          base:400,   g:2.0,  max:20},
+  {k:'cps',  i:'🌀', n:'聚灵阵',   d:()=>'洞天每秒收益 +25%',                    base:200,   g:1.55, max:100},
+  {k:'coin', i:'💎', n:'点石成金', d:()=>'仙缘获取 +15%',                        base:500,   g:1.6,  max:100},
+  {k:'combo',i:'🥊', n:'快手诀',   d:()=>'连击上限 +5，连击天命加成 +5%',        base:800,   g:1.8,  max:40},
+  {k:'auto', i:'🤖', n:'傀儡道童', d:l=>l?'自动抽卡速度 +18%':'解锁「自动抽卡」', base:3000,  g:1.6,  max:40},
+  {k:'ten',  i:'🎴', n:'十连秘法', d:l=>l?'十连额外 +1 抽':'解锁「十连抽」',      base:8000,  g:2.1,  max:15},
+  {k:'pity', i:'📖', n:'窥天机',   d:()=>'保底所需次数 −2',                      base:5000,  g:2.2,  max:12},
+];
+
+/* ---------------- 修行的渐进解锁 ---------------- */
+/* 为何要护住这个：八项修行原先一上来全摆在桌面上，而门槛低到一分钟内全能买下 ——
+   台架实测（每 300ms 一点的真实新玩家）：8 项的首次解锁全挤在 4s～60.7s，
+   第 61 秒之后的四分钟里再也没有任何新面孔，只剩同样八个按钮加数字。
+   成本曲线本身是健康的（5 分钟后下一级要百万级，无一项满级），
+   所以问题不在数值而在释放节奏：增量游戏的驱动力是「下一个新东西」。
+
+   门槛必须用渡劫不重置的量（draws / merges / 图鉴）。
+   用 S.best 会出大问题：它渡劫后归零，已经开启过的修行会被重新锁上。 */
+const UPGATE = {
+  slot:  {ok:()=>S.merges>=6,                        txt:'完成 6 次合成'},
+  coin:  {ok:()=>S.draws>=60,                        txt:'抽卡 60 次'},
+  ten:   {ok:()=>Object.keys(S.codex).length>=6,     txt:'图鉴集齐 6 阶'},
+  combo: {ok:()=>S.draws>=200,                       txt:'抽卡 200 次'},
+  auto:  {ok:()=>S.draws>=400,                       txt:'抽卡 400 次'},
+  pity:  {ok:()=>S.draws>=800,                       txt:'抽卡 800 次'},
+};
+function upOpen(k){
+  const g=UPGATE[k];
+  if(!g) return true;
+  /* 已经有等级的项永不重新上锁：承前诀（道纹）会让渡劫后保留几级修行，
+     若那时门槛碰巧不满足，玩家会看到一个“有等级却锁着”的矛盾条目。 */
+  if(U(k)>0) return true;
+  return g.ok();
+}
+/* 已通告过解锁的项。不存档：启动时把当下已满足的全部静默标记（syncUpSeen），
+   否则老存档每次刷新都会一口气补弹六个解锁横幅。 */
+let upSeen={}, upWait={};
+function syncUpSeen(){ for(const k in UPGATE) if(upOpen(k)) upSeen[k]=1; }
+function checkUpUnlock(){
+  const now=performance.now();
+  for(const k in UPGATE){
+    /* 自愈：标记过却又不满足门槛的，清掉重新等待。
+       upSeen 只该意味着「已开启且已通告」，一旦出现脏标记（控制台改过存档、
+       或以后改动引入了新的赋值路径），那一条解锁通告就永远不会再出现了。 */
+    if(upSeen[k]&&!upOpen(k)){ delete upSeen[k]; delete upWait[k]; continue; }
+    if(upSeen[k]||!upOpen(k)) continue;
+    if(SILENT){ upSeen[k]=1; continue; }
+    /* 让开刚弹出的横幅（如秘宝现世）把话说完。先不标记 seen，下一帧再报，
+       否则这一条通告会被永久丢掉。
+       礼让必须有封顶：后期横幅可能被持续刷新，无期限让下去等于把通告无限拖延。 */
+    if(!upWait[k]) upWait[k]=now;
+    if(now-lastBanner<1100 && now-upWait[k]<3000) continue;
+    upSeen[k]=1;
+    const u=UPS.find(x=>x.k===k); if(!u) continue;
+    log(`${u.i} 修行开启【${u.n}】— ${u.d(0)}`);
+    showBanner(u.i,'修 行 开 启',u.n,u.d(0),'#8ff5ff');
+    alertTab('up'); dirty=true;
+  }
+}
+
+/* ---------------- 道纹（消耗道行 · 永久 · 渡劫不重置 · 无上限） ---------------- */
+/* 天命对跃升概率的作用有渐近上限（0.34，见 upChance），
+   所以道行超过 ~20 点之后就再也换不来任何实际收益。没有这套无上限的道纹，
+   渡劫产出的道行是纯粹的空奖励 —— 实测 30 分钟能攒到 441 点道行，
+   而跃升概率始终停在 33.99%，全部修行也早已满级，后 22 分钟毫无成长。
+
+   四条线都必须是「乘法型且不会饱和」的：曾经放过一条「自动抽卡速度」，
+   但抽卡间隔有 55ms 硬地板，而太阳精封顶 ×3 时间隔已经是 36ms ——
+   那条道纹从第一级起就是完全空的升级，和它本要修的毛病一模一样。 */
+const DAOS = [
+  {k:'dcoin', i:'🪙', n:'玄同诀', d:l=>`仙缘获取 +${l*30}%`,       base:2},
+  {k:'dcps',  i:'🔔', n:'聚元诀', d:l=>`洞天每秒收益 +${l*40}%`,   base:2},
+  {k:'dgain', i:'☄️', n:'乘劫诀', d:l=>`渡劫获得道行 +${l*25}%`,   base:5},
+  {k:'dkeep', i:'📿', n:'承前诀', d:l=>`渡劫后保留 ${l} 级修行`,    base:8, max:25},
+];
+
+/* ---------------- 天命任务模板 ---------------- */
+const QT = [
+  {k:'draw',  t:n=>`抽卡 ${n} 次`,        amt:[40,90,180,360],  rw:1.0},
+  {k:'merge', t:n=>`触发合成 ${n} 次`,    amt:[15,30,60,120],   rw:1.2},
+  {k:'chain', t:n=>`达成 ${n} 连锁合成`,  amt:[3,4,5,6],        rw:2.2},
+  {k:'combo', t:n=>`连击达到 ${n}`,       amt:[15,25,40,60],    rw:1.6},
+  {k:'tier3', t:n=>`获得 ${n} 个极品以上`,amt:[6,12,24,48],     rw:1.4},
+  {k:'coin',  t:n=>`累计赚取 ${fmt(n)} 仙缘`, amt:'coin',       rw:1.1},
+];
+
+/* ---------------- 状态 ---------------- */
+function fresh(){
+  return {
+    coin:0, earned:0, draws:0, merges:0, best:0, dao:0, ascends:0,
+    board:[], uid:1, combo:0, comboBest:0, comboT:0, pityL:0, pityH:0,
+    ups:{}, relics:{}, codex:{}, quests:[], qseed:0, auto:false,
+    daos:{}, daoUse:0,
+    stat:{merge:0, chain:0, tier3:0, relicRolls:0, origin:0},
+    originRun:0,                          // 本周目归元次数（渡劫清零），渡劫深度奖励的唯一来源
+    playMs:0, last:Date.now(), sound:true, tab:'up', giftAt:0,
+    /* 已发放到的抽卡里程碑。渡劫不清零（draws 本身也不清）——
+       它记的是「这个人一共点了多少下」，是终身计数。 */
+    mileAt:0,
+  };
+}
+let S = fresh();
+UPS.forEach(u=>S.ups[u.k]=0);
+
+/* ---------------- 工具 ---------------- */
+const $  = s=>document.querySelector(s);
+const $$ = s=>[...document.querySelectorAll(s)];
+const rnd = (a,b)=>a+Math.random()*(b-a);
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const UNITS=['','万','亿','兆','京','垓','秭','穰','沟','涧','正','载'];
+function fmt(n){
+  if(n===Infinity)return '∞';
+  /* NaN 兜底：一旦某条公式算出 NaN，没有这句就会直接在顶栏上印出“NaN”。 */
+  if(!isFinite(n))return '—';
+  if(n<0)return '-'+fmt(-n);
+  /* 中文单位只到「载」（1e44）。再往上必须切科学计数法 ——
+     否则 while 会因单位耗尽而提前退出，Math.floor(1e264) 被直接拼成字符串，
+     界面上会出现「1e+264载」这种东西（长期挂机真的能爬到这个量级）。 */
+  if(n>=1e48) return n.toExponential(2).replace('e+','e');
+  if(n<10000)return n<10?(Math.round(n*10)/10+''):Math.floor(n)+'';
+  let u=0; while(n>=10000&&u<UNITS.length-1){n/=10000;u++;}
+  return (n<10?n.toFixed(2):n<100?n.toFixed(1):Math.floor(n))+UNITS[u];
+}
+function pctOf(x){return Math.round(x*100)+'%';}
+
+/* ================= 加成聚合（缓存 + 硬上限） ================= */
+/* 秘宝可无限叠层，但概率型 / 速度型加成必须封顶：
+   太阳精过高会让单帧抽卡数爆炸，雷劫符 / 天命骰过高会直接越过整套境界曲线，
+   洞天钥过高则会把格子数推到 DOM 承受不住的量级。 */
+const BCAP={free:.55,crit:.35,dbl:.45,mdrop:.75,slot:24,auto:3,sell:9,off:6,win:2.5,cmax:90,gift:1};
+const PITY_FLOOR=-0.6;
+const zeroB=()=>({luck:0,rare:0,cmax:0,coin:0,win:0,mdrop:0,cps:0,dbl:0,pity:0,slot:0,
+                  free:0,crit:0,off:0,auto:0,gift:0,sell:0});
+
+/* 每件秘宝的「饱和层数」—— 把它影响的加成推到硬上限所需的层数，由 BCAP 反算，
+   这样调 BCAP 不会让文案和实际效果脱节。
+   实测：16 件里有 12 件封顶，合计只需 60 层就全部饱和（瑞兽只要 1 层），
+   而 60 分钟对局能攒到 613 层 —— 九成层数是完全无效的，
+   偏偏秘宝抽取（全屏闪光 + 横幅）是整个游戏最强的正反馈。溢出层必须有真实去处。 */
+RELICS.forEach(r=>{
+  const p=zeroB(); r.f(p);
+  const k=Object.keys(p).find(x=>p[x]!==0);
+  const lim = k==='pity' ? PITY_FLOOR : (BCAP[k]!==undefined?BCAP[k]:null);
+  r.sat = lim===null ? Infinity : Math.max(1,Math.ceil(lim/p[k]));
+});
+
+let B=null, bDirty=true;
+function bonus(){
+  if(B&&!bDirty) return B;
+  const b=zeroB();
+  let over=0;
+  RELICS.forEach(r=>{
+    const n=S.relics[r.k]||0;
+    for(let i=0;i<n;i++) r.f(b);
+    if(r.sat!==Infinity) over+=Math.max(0,n-r.sat);
+  });
+  // 图鉴解锁奖励：每解锁一个境界 +4% 天命 +8% 仙缘
+  const cx=Object.keys(S.codex).length;
+  b.luck+=cx*0.04; b.coin+=cx*0.08;
+  for(const k in BCAP) b[k]=Math.min(BCAP[k],b[k]);
+  b.pity=Math.max(PITY_FLOOR,b.pity);
+  b.rover=over;
+  B=b; bDirty=false; return b;
+}
+function unlockCodex(t){ if(S.codex[t])return false; S.codex[t]=1; bDirty=true; return true; }
+const U = k=>S.ups[k]||0;
+const D = k=>S.daos[k]||0;
+/* 道行同时是「永久倍率来源」和「道纹货币」：花掉的记在 daoUse 里而不从 dao 里扣，
+   否则买道纹会反过来削弱天命 / 仙缘倍率，变成一笔负收益的交易。 */
+const daoLeft = ()=>Math.max(0,S.dao-(S.daoUse||0));
+function daoCost(d){ const lv=D(d.k); return Math.floor(d.base*(lv+1)*(1+lv*0.22)); }
+function autoIv(){ return Math.max(55, 1200/(1+0.18*U('auto'))/(1+B.auto)); }
+function slots(){ return Math.min(60, 15 + U('slot') + B.slot); }
+function comboMax(){ return 20 + U('combo')*5 + B.cmax; }
+function comboWin(){ return 1700*(1+B.win); }
+function luckBase(){ return (1+0.08*U('luck')+B.luck+B.rare)*(1+0.12*S.dao); }
+function luckMul(){ return luckBase()*(1+S.combo*(0.010+0.0005*U('combo'))); }
+/* 跃升概率的渐近上限是 0.34。这个数字曾被注成「1/3 是合成经济的临界点」——
+   那个推理是错的，实测过：价值每阶 ×5～8（不是 ×3），所以真正的临界点是 1/r ≈ 0.125～0.20，
+   而 p 的整条曲线（0.24～0.34）本来就全在临界点之上。
+   也就是说单抽期望价值由最高阶那一项主导，唯一兜住它的是 MAXT 的硬截断（见 rollTier 的 t<MAXT）。
+   ⚠️ 因此新增境界会让期望收益直接 ×r（一阶就是 5～8 倍），绝不是「再加一阶而已」。
+   要加阶，必须同时把 upChance 的上限压到 1/r 以下，或给单抽期望值加显式封顶。 */
+function upChance(){ const L=luckMul(); return 0.24+0.10*(1-1/(1+0.35*Math.max(0,L-1))); }
+/* 天命的真实威力：24% → 34% 听着只多十个百分点，实际单抽期望价值差 32 倍。
+   百分比这种呈现让全局最强的修行看起来最弱，玩家会把钱先花在「洞天格子 +1」上。
+   曾试过用「平均多少抽出一件灵品」来表达，但保底把那个指标压得完全平了
+   （开局与拉满两端都撞在 50 抽）—— 保底封住的恰好就是低概率区间。
+   改用期望价值倍率：它直接就是「这一级到底值多少」的答案，也是一条真实的进度条。 */
+function drawEV(p){ let s=0,q=1; for(let t=0;t<=MAXT;t++){ s+=q*TIERS[t].v; q*=p; } return s; }
+const EV_BASE=drawEV(0.24);
+function evMul(){ return drawEV(upChance())/EV_BASE; }
+
+/* ---------------- 道韵：所有已饱和加成的统一出口 ---------------- */
+/* 天命唯一的作用是 upChance，而 upChance 有 0.34 的渐近上限（动不了，见上）。
+   实测 60 分钟天命倍率能涨到 ×66644，但从 ×100 起跃升概率就已经是 34.00% ——
+   顶栏那个不断变大的天命数字，后面 99.9% 完全不做事，是一条欺骗性的进度条。
+
+   道韵把两处溢出都换成真实收益：秘宝的溢出层数 + 天命超出饱和点后的倍数（取 log2，
+   因为天命是乘法叠加的，线性折算会瞬间爆炸）。
+   只折算成「仙缘 / 每秒收益 / 渡劫道行」这类线性倍率是安全的 ——
+   发散风险只来自合成的 3^t 指数，线性放大产量不会越过 p=1/3 临界点。
+   天命部分特意用不含连击的 luckBase()，否则道韵会随每一次点击抖动。
+
+   LUCK_W 不能省：秘宝溢出是线性无界的（实测 60 分钟 398 层），而 log2 是有界的，
+   两者直接相加时天命溢出只占道韵的 1.5%（426 里的 6.3）——
+   数值上非零、实际上仍然是空升级，只是比之前那条「御风诀」隐蔽得多。
+   加权后天命 ×1e6 能换来 ~106 点道韵，观星术和转运珠才真的值得一直投资。 */
+const LUCK_SAT=100, LUCK_W=8;
+function resoLuck(){ return LUCK_W*Math.log2(Math.max(1,luckBase()/LUCK_SAT)); }
+function reso(){ return B.rover + resoLuck(); }
+function resoMul(){ return 1+0.05*reso(); }
+
+function pityNeed(){ return Math.max(12, Math.round((50-2*U('pity'))*(1+B.pity))); }
+function pityHigh(){ return 800; }
+function coinMul(){ return (1+0.15*U('coin')+B.coin)*(1+0.20*S.dao)*(1+0.30*D('dcoin'))*(1+S.combo*0.04)*resoMul(); }
+function cps(){
+  let s=0; S.board.forEach(x=>s+=TIERS[x.t].v);
+  return s*0.05*(1+0.25*U('cps'))*(1+B.cps)*(1+0.20*S.dao)*(1+0.40*D('dcps'))*resoMul();
+}
+function upCost(u){ return Math.floor(u.base*Math.pow(u.g,U(u.k))); }
+function sellValue(t){ return TIERS[t].v*(1+B.sell)*coinMul()*0.6; }
+
+/* ================= 抽卡核心 ================= */
+function rollTier(){
+  const p=upChance(); let t=0;
+  while(t<MAXT && Math.random()<p) t++;
+  if(Math.random()<B.crit) t=Math.min(MAXT,t+2);
+  // 保底
+  if(t<4 && S.pityL+1>=pityNeed()) t=4;
+  if(t<6 && S.pityH+1>=pityHigh()) t=6;
+  return t;
+}
+function draw(auto){
+  bonus();
+  const now=performance.now();
+  S.combo = (now-S.comboT<comboWin()) ? Math.min(comboMax(),S.combo+1) : 1;
+  S.comboT=now;
+  if(S.combo>S.comboBest)S.comboBest=S.combo;
+  bump('combo',S.combo,true);
+
+  let n=1;
+  if(Math.random()<B.dbl) n=2;
+  let top=0;
+  for(let i=0;i<n;i++){
+    const t=rollTier();
+    S.draws++;
+    S.pityL = t>=4?0:S.pityL+1;
+    S.pityH = t>=6?0:S.pityH+1;
+    if(t>=3){S.stat.tier3++; bump('tier3',1);}
+    gainItem(t,true);
+    if(t>top)top=t;
+  }
+  if(n===2&&!SILENT) floatText('🎲 天命骰！双抽',innerWidth/2,innerHeight*0.62,'#ffd479',16);
+
+  // 瑞兽白送十连（离线批量补抽时不触发，否则归来瞬间会炸出一串十连）
+  if(!BATCH && B.gift>0 && S.draws-S.giftAt>=60){
+    S.giftAt=S.draws;
+    pushGift('🦌 瑞兽献礼：免费十连！');
+  }
+  drawMile();
+  if(guideOn&&S.draws>0) syncGuide();
+
+  spinReel(top);
+  if(!auto&&!SILENT){ const bb=$('#bigBtn'); bb.classList.remove('hit'); void bb.offsetWidth; bb.classList.add('hit'); }
+  sfxDraw(top);
+  if(top>=3) celebrate(top);
+  else if(top<=1 && !SILENT && Math.random()<0.13) nearMiss();
+  bump('draw',1);
+  dirty=true;
+}
+let tenBusy=false, giftQueue=0, giftMsgs=[];
+/* 瑞兽白送的十连得排队：以前撞上 tenBusy 就 setTimeout 重试，而后期抽卡速度
+   远快于十连播完的速度，多个送礼会各自无上限重试 → 定时器持续泄漏。 */
+/* 队列里得带上各自的文案：现在有两个源头会送十连（瑞兽、抽卡里程碑），
+   若文案写在 tryGift 里写死，玩家就会看到“已点 150 次”后面跟一句“瑞兽献礼”。 */
+function pushGift(msg){
+  if(giftQueue>=3)return;
+  giftQueue++; giftMsgs.push(msg);
+  setTimeout(tryGift,420);
+}
+function tryGift(){
+  if(giftQueue<=0||tenBusy)return;
+  giftQueue--;
+  log(giftMsgs.shift()||'🦌 瑞兽献礼：免费十连！');
+  ten(true);
+}
+/* 抽卡里程碑：一条完全不依赖阶数的反馈轴。
+   台架量过新手前三分钟：28~62 秒是一段 33 秒的零事件死亡谷 ——
+   因为秘宝、图鉴、修行解锁全都由「最高阶」触发，
+   阶数跃升一变慢，所有反馈同时停摆。
+   这条轴只取决于点击次数，前期落点（实测约 15/28/40/60s）正好盖住那段停摆。
+   奖励给免费十连而不是仙缘：十连本身就是一串动画和一次开盒期待，
+   它同时是奖励和反馈，而纯给钱只是数字又大了一点。 */
+const MILE_R=1.35;
+/* 门槛按比例递增（每次 ×1.35）而不是固定增量。
+   最初写的是 50/100/150/250/400/600 这样的手列表，台架量出来
+   250→400 那一段空了 42 秒 —— 因为增量涨得比抽卡速率快。
+   抽卡速率会随修行和自动抽卡不断上升，按固定比例走，
+   门槛增速与速率增速同阶，间隔才稳得住。
+   取整到十位是为了数字看着像个「里程碑」；
+   m+10 的下限保证单调递增，否则取整有可能让循环原地卡死。 */
+function nextMile(d){
+  let m=50;
+  while(m<=d) m=Math.max(m+10, Math.round(m*MILE_R/10)*10);
+  return m;
+}
+function drawMile(){
+  const at=S.mileAt||0;
+  if(S.draws<nextMile(at))return;
+  /* 先把进度追平再发一次通告。老存档（没有 mileAt 字段）或长时间离线补抽
+     会一口跳过很多个里程碑，逐个补发会把玩家埋在一串弹窗里。 */
+  while(S.draws>=nextMile(S.mileAt||0)) S.mileAt=nextMile(S.mileAt||0);
+  /* 守卫用 BATCH 而不是 SILENT。两者在离线补抽时确实同时为真，但语义不同：
+     SILENT 只表示「不出特效」，拿它当补抽标志会让整条反馈轴在静音场景下消失，
+     台架也就永远量不到它 —— 而台架量不到的东西等于没有验证。
+     这个混用在瑞兽献礼上已经犯过一次（见 SILENT 定义处的注释）。 */
+  if(BATCH)return;
+  log(`🎯 已点 ${fmt(S.mileAt)} 次 · 天道酬勤，免费十连！`);
+  pushGift(`🎯 ${fmt(S.mileAt)} 抽贺礼：免费十连！`);
+}
+function ten(free){
+  bonus();
+  if(!free && !U('ten')) return;
+  if(tenBusy) return;                        // 避免连按 Q 堆出多个定时器
+  tenBusy=true;
+  const cnt=10+(U('ten')>0?U('ten')-1:0);
+  let i=0;
+  const id=setInterval(()=>{
+    draw(true);
+    if(++i>=cnt){
+      clearInterval(id); tenBusy=false;
+      S.combo=Math.min(comboMax(),S.combo+5); dirty=true;
+      if(giftQueue>0) setTimeout(tryGift,200);
+    }
+  },72);
+}
+
+/* ---------------- 获得物品 / 自动合成连锁 ---------------- */
+const mergeMark=new Set();
+function markMerge(id){ mergeMark.add(id); }
+/* SILENT 只管「抑制特效 / 音效 / 日志」。
+   BATCH 管「跳过逐个物品的异步合成调度」—— 离线批量补抽时由 mergeSync 统一同步处理，
+   以及「不发放靠抽卡次数触发的赠送」（瑞兽献礼、抽卡里程碑）。
+   这两件事必须分开：早先合用一个 SILENT，导致任何人为了静音而设它，
+   就会连带静默关掉整条合成链 —— 台架里跑出「合成 0 次、境界卡在 10」这种
+   看起来像游戏缺陷、实际是开关误用的假象（本轮连续误判三次才定位到）。 */
+let SILENT=false, BATCH=false;
+function gainItem(t,isDraw){
+  if(t>S.best){ S.best=t; }
+  if(unlockCodex(t)) onCodex(t);
+  if(S.board.length>=slots()){
+    // 无败局：自动出售最低阶（或本次抽到的）
+    let mi=0; for(let i=1;i<S.board.length;i++) if(S.board[i].t<S.board[mi].t) mi=i;
+    if(S.board[mi].t<t){ const old=S.board[mi]; S.board.splice(mi,1); sell(old.t,'洞天已满，自动出售'); }
+    else { sell(t,'洞天已满，自动出售'); return; }
+  }
+  S.board.push({t,id:S.uid++,fresh:1});
+  if(BATCH) return;                  // 离线补抽交由 mergeSync 同步处理
+  queueMerge(isDraw?150:0);
+}
+function sell(t,why){
+  const g=sellValue(t);
+  addCoin(g);
+  /* 后期洞天长期满格，每次抽卡都会自动出售一件 —— 不节流就是每秒十几条，
+     没人读得过来，反而把真正重要的合成与秘宝日志刷没。 */
+  if(t>=3&&!SILENT){
+    const now=performance.now();
+    if(now-lastSellLog>700){ lastSellLog=now; log(`${TIERS[t].i} ${why} +${fmt(g)}`); }
+  }
+}
+/* 当前可合成的最高阶（存在 >=3 个同阶），无则 -1。
+   最高阶（MAXT）也计入：原先直接跳过最高阶，后果是最高阶物品永久占格，
+   洞天在后期被一堆无法处理的死重塞满（实测长期 58/59）。 */
+function findTriple(){
+  const cnt={};
+  S.board.forEach(x=>{ cnt[x.t]=(cnt[x.t]||0)+1; });
+  let tgt=-1;
+  for(const k in cnt) if(cnt[k]>=3){ const t=+k; if(t>tgt)tgt=t; }
+  return tgt;
+}
+/* 合成的额外产出（因果镜返还 / 点金杖掉落）。
+   两者都是「凭空产出」，每次合成最多只能命中一个 ——
+   因为合成固定消耗 3 、产出 1，再加 1 个额外产出仍然是净 −1，
+   棋盘物品数严格递减 → 合成循环一定会终止。
+   早期的「合成不消耗材料」写法恰好破坏了这个不变式：同一组三联会被无限重复合成，
+   棋盘靠 keep 涨满、靠满格强制消耗回落，如此震荡永不终止 ——
+   实测 mergeSync 每次都跑满 100000 次上限，道行凭空涨到 4658。 */
+function mergeExtras(tgt,nt,fx){
+  if(nt<=tgt) return;                       // 最高阶归元：不给任何额外产出
+  if(S.board.length>=slots()) return;
+  if(Math.random()<B.free) S.board.push({t:tgt,id:S.uid++,fresh:fx});
+  else if(Math.random()<B.mdrop) S.board.push({t:Math.max(0,nt-2),id:S.uid++,fresh:fx});
+}
+/* 自动抽卡满级时每秒落地约 26 个物品。逐个排一个 setTimeout 的话每秒要创建 26 个定时器，
+   而其中 25 个的唯一作用是把同一个布尔量重复设成 true（实测并存定时器 15~35 个）。
+   合并成一个待处理句柄，语义完全等价，省掉低端机上大量的定时器创建与 GC 压力。 */
+let queueT=0;
+function queueMerge(iv){
+  if(queueT) return;
+  queueT=setTimeout(()=>{ queueT=0; scheduleMerge(); },iv);
+}
+let merging=false, pendingMerge=false, chainT=0;
+function scheduleMerge(){
+  if(merging){ pendingMerge=true; return; }
+  mergeChain(0);
+}
+function mergeEnd(depth){
+  merging=false;
+  if(depth>0){ S.stat.chain=Math.max(S.stat.chain,depth); bump('chain',depth,true); }
+  dirty=true;
+  if(pendingMerge){ pendingMerge=false; setTimeout(scheduleMerge,0); }
+}
+function mergeChain(depth){
+  merging=true;
+  const now=performance.now();
+  const tgt=findTriple();
+  if(tgt<0){ mergeEnd(depth); return; }
+  /* 后期这条链永远不会结束，depth 衡量的就变成「已经跑了多久」
+     而不是「爆了多大一串」（实测出现过 1307 连锁，连带把合成音效推到 52kHz）。
+     每 2.5 秒切一段，连锁数才恢复为有意义的爆发量度。 */
+  if(now-chainT>2500){
+    chainT=now;
+    if(depth>0){ S.stat.chain=Math.max(S.stat.chain,depth); bump('chain',depth,true); }
+    depth=0;
+  }
+
+  /* 一步内处理几组三联：洞天越挤越多。
+     后期满格时抽卡产出 26.4 个/秒（间隔 55ms 地板 × 平均 1.45 个），
+     而一步一组的合成最快只能消耗 17.1 个/秒（每步 65ms、净消耗 1.11 个）——
+     永远追不上，棋盘于是死锁在 59/59（实测 60 分钟峰值 = 终值 = 59），
+     新抽到的物品直接被自动出售，「点一下、东西掉进洞天」这个核心反馈就消失了。
+     批量合成只需 2 组就能打平，给到 4 组是为了让洞天真的能周期性吹空、重新填满。 */
+  const fill=S.board.length/slots();
+  const want = fill>=0.9 ? 4 : fill>=0.7 ? 2 : 1;
+  let avail=0; S.board.forEach(x=>{ if(x.t===tgt) avail++; });
+  const groups=Math.max(1,Math.min(want,Math.floor(avail/3)));
+
+  const ids=[]; for(let i=0;i<S.board.length&&ids.length<groups*3;i++) if(S.board[i].t===tgt) ids.push(S.board[i].id);
+  /* 三尊最高阶归元 → 道行 +1，为最高阶给一个出口。 */
+  const top = tgt===MAXT;
+  ids.forEach(markMerge);
+  const nt = top?MAXT:tgt+1;
+  /* 节奏：连锁越深越快（手感），洞天越挤越快（吞吐量）。
+     后期自动抽卡可达 18 次/秒，而固定 200ms 一步的合成只有 ~2.5 次/秒 ——
+     洞天会永久满格，物品在合成前就被自动出售，「三合一」核心循环在后期反而失效。 */
+  const boost = S.board.length>=slots()*0.85 ? 4 : 1;
+  const wait=Math.max(35,(200-depth*14)/boost), gap=Math.max(30,(190-depth*14)/boost);
+  setTimeout(()=>{
+    S.board=S.board.filter(x=>ids.indexOf(x.id)<0);   // 合成固定消耗每组三个材料
+    const done=Math.floor(ids.length/3);
+    if(top){
+      S.dao+=done; S.stat.origin+=done; S.originRun=(S.originRun||0)+done;
+      /* 文案一律从 TIERS[MAXT] 取 —— 早先这里把「道祖」写死在字符串里，
+         补了四阶之后最高阶变成「大道」，日志和横幅就会指着错的境界名。 */
+      if(!SILENT){ const TN=TIERS[MAXT];
+        log(`${TN.i} 三尊${TN.n}归元 → 道行 +${done}`);
+        showBanner(TN.i,TN.n.split('').join(' ')+' 归 元',`道行 +${done}`,'三尊同参，天道酬之',TN.c); alertTab('dao'); }
+    }
+    else for(let i=0;i<done;i++){
+      if(S.board.length<slots()) S.board.push({t:nt,id:S.uid++,fresh:1});
+      else sell(nt,'洞天已满，自动出售');
+    }
+    S.merges+=done; S.stat.merge+=done; bump('merge',done);
+    addCoin(TIERS[nt].v*1.5*done*coinMul());
+    if(!top && unlockCodex(nt)) onCodex(nt);
+    if(nt>S.best)S.best=nt;
+    sfxMerge(nt,Math.min(12,depth));
+    burst(TIERS[nt].c, Math.min(80,14+depth*8)+(done-1)*6);
+    if(depth>=2) floatText(`${depth+1} 连锁！`,innerWidth*0.3,innerHeight*(0.3+Math.min(4,depth)*0.05),'#ff9d3a',Math.min(38,20+depth*3));
+    /* 归元不走 celebrate：top 分支根本没有产出任何 nt 阶物品（三尊被消耗掉了），
+       拿「获得物品」的庆祝去庆祝一次消耗本身就是语义错位。
+       更要紧的是它会在 3ms 后用同境界的 celebrate 横幅盖掉刚弹出的归元横幅 ——
+       全局最稀有的仪式瞬间，玩家从来没真正看到过。 */
+    if(!top && nt>=5) celebrate(nt,true);
+    for(let i=0;i<done;i++) mergeExtras(tgt,nt,1);
+    dirty=true;
+    setTimeout(()=>mergeChain(depth+1),gap);
+  },wait);
+}
+/* 同步合成：离线补抽 / 存档修复专用，无动画无音效。
+   经济效果必须与 mergeChain 一致：否则离线解锁的图鉴会永久吞掉秘宝奖励
+   （图鉴只能解锁一次，错过就再也拿不到），且任务进度在离线期间完全停滞。 */
+function mergeSync(limit){
+  let n=0;
+  while(n<limit){
+    const tgt=findTriple(); if(tgt<0)break;
+    const top = tgt===MAXT;
+    let rm=0;
+    S.board=S.board.filter(x=>{ if(x.t===tgt&&rm<3){rm++;return false;} return true; });
+    const nt = top?MAXT:tgt+1;
+    if(top){ S.dao++; S.stat.origin++; S.originRun=(S.originRun||0)+1; }
+    else if(S.board.length<slots()) S.board.push({t:nt,id:S.uid++,fresh:0});
+    else sell(nt,'洞天已满，自动出售');
+    S.merges++; S.stat.merge++; bump('merge',1);
+    addCoin(TIERS[nt].v*1.5*coinMul());
+    if(!top && unlockCodex(nt)) onCodex(nt);
+    if(nt>S.best)S.best=nt;
+    mergeExtras(tgt,nt,0);
+    n++;
+  }
+  if(n>1){ S.stat.chain=Math.max(S.stat.chain,n); bump('chain',n,true); }
+  return n;
+}
+
+function addCoin(g){ S.coin+=g; S.earned+=g; bump('coin',g); }
+function onCodex(t){
+  if(!SILENT){
+    log(`📖 图鉴解锁：${TIERS[t].n}·${TIERS[t].item}（天命 +4%，仙缘 +8%）`);
+    alertTab('codex');
+  }
+  if(t>=5) rollRelic();
+}
+
+/* ---------------- 秘宝抽取 ---------------- */
+function rollRelic(){
+  S.stat.relicRolls++;
+  const missing=RELICS.filter(r=>!S.relics[r.k]);
+  const pool = missing.length&&Math.random()<0.72 ? missing : RELICS;
+  const r=pool[Math.floor(Math.random()*pool.length)];
+  const isNew=!S.relics[r.k];
+  S.relics[r.k]=(S.relics[r.k]||0)+1;
+  bDirty=true; bonus();
+  if(!SILENT){
+    flashScreen(); burst('#ffd479',60);
+    showBanner(r.e, isNew?'秘宝现世':'秘宝共鸣', r.n, r.d);
+    sfxRelic();
+    log(`${r.e} 获得秘宝【${r.n}】${isNew?'（新！）':'（叠加 '+S.relics[r.k]+' 层）'} — ${r.d}`);
+  }
+  alertTab('relic'); dirty=true;
+}
+
+/* ================= 任务 ================= */
+function newQuest(){
+  const tpl=QT[Math.floor(Math.random()*QT.length)];
+  const lv=Math.min(3,Math.floor(S.draws/300)+Math.floor(Math.random()*2));
+  let need;
+  if(tpl.amt==='coin') need=Math.max(500,Math.floor((cps()*90+800)*(1+lv)));
+  else need=tpl.amt[lv];
+  // 连击任务不能超过当前连击上限，否则永远无法完成、白占一个任务位
+  if(tpl.k==='combo') need=Math.min(need,comboMax());
+  const reward=Math.max(300, Math.floor((cps()*40+300)*tpl.rw*(1+lv*0.7)));
+  return {k:tpl.k, need, have:0, txt:tpl.t(need), rw:reward, relic:Math.random()<0.28};
+}
+function ensureQuests(){ while(S.quests.length<3) S.quests.push(newQuest()); }
+function bump(k,v,isMax){
+  S.quests.forEach(q=>{
+    if(q.k!==k||q.done)return;
+    if(isMax) q.have=Math.max(q.have,v); else q.have+=v;
+    if(q.have>=q.need){ q.done=true; alertTab('quest'); }
+  });
+}
+function claim(i){
+  const q=S.quests[i]; if(!q||!q.done)return;
+  addCoin(q.rw); log(`✅ 天命达成：${q.txt} +${fmt(q.rw)} 仙缘`);
+  if(q.relic) rollRelic();
+  S.quests.splice(i,1); ensureQuests(); sfxClick(1400); dirty=true;
+}
+
+/* ================= 渡劫 ================= */
+/* 渡劫门槛必须随次数上升。门槛恒定在混沌时，「十秒一次渡劫」是绝对最优解 ——
+   实测 30 分钟可渡劫 189 次，后果是修行等级永远停在 7 级、图鉴永远卡在 10/12，
+   顶部四个境界和整套修行系统全部作废。递进门槛让每一周目都必须真的打得更深。 */
+/* 为何不再给「自愿打得更深」发奖（删掉了旧的 (best-req)*4）：
+   那一项上线至今一次都没生效过 —— 渡劫按钮一亮就会被点，所以 best 永远正好等于 req
+   （台架 45 分钟 61 个周目全部是 +0）；且门槛顶到 MAXT 后它在数学上必然为 0。
+   试过把门槛收窄到 MAXT-1 给它腾地方，结果周目从 40 秒崩到 19.5 秒（少爬一阶快一半），
+   渡劫直接贬值，而深度项依旧是 0。根因是结构性的：等 100 秒多攒一尊归元（周目时长 5 倍）
+   只换 +50% 道行，在快节奏转生循环里「延迟收割换倍率」永远不是理性选择，怎么调数值都一样。
+   深度已经由【门槛递进】强制了，不需要再加一个没人会选的自选项。
+
+   保留 originRun（本周目归元）是另一回事：它不要求任何人克制。
+   快刷玩家的 originRun 本来就是 0，对他们公式毫无变化；
+   而挂机很久才回来渡劫的玩家（挂机 30 分钟能自然积累 17 尊归元）
+   原先和刚开一局拿到的道行一模一样 —— 这一项把那份无声无息的积累兼顾了。 */
+function reqTier(){ return Math.min(MAXT, 7 + Math.floor(S.ascends/2)); }
+function ascendGain(){
+  const req=reqTier();
+  if(S.best<req) return 0;
+  const a=req+(S.originRun||0)*5;
+  const b=Math.floor(Math.log10(Math.max(10,S.earned))-5);
+  return Math.max(1,Math.floor((a+Math.max(0,b))*(1+0.25*D('dgain'))*(1+0.02*reso())));
+}
+function doAscend(){
+  const g=ascendGain(); if(g<=0)return;
+  S.dao+=g; S.ascends++;
+  /* S.best 必须一起重置：否则渡劫后 ascendGain() 仍按旧境界结算，
+     「渡劫」按钮会一直亮着，连点即可无限刷道行 —— 整个经济会瞬间失效。 */
+  S.coin=0; S.earned=0; S.board=[]; S.combo=0; S.pityL=0; S.pityH=0; S.auto=false;
+  S.best=0; S.giftAt=S.draws; S.originRun=0;
+  // 承前诀（道纹）：每级保留 1 级修行，减轻每周目从零重建的枯燥感
+  const kp=D('dkeep');
+  UPS.forEach(u=>S.ups[u.k]=Math.min(kp,S.ups[u.k]||0));
+  S.quests=[]; bDirty=true; bonus(); ensureQuests();
+  flashScreen(); burst('#ff9cf0',120);
+  showBanner('☯️','渡 劫 成 功',`道行 +${g}`,`永久：天命 +${g*12}% · 仙缘 +${g*20}%`);
+  log(`☯️ 渡劫！道行 +${g}（共 ${S.dao}）`);
+  sfxAscend(); dirty=true; alertTab('dao');
+  // 图鉴集满后就再也不会从境界解锁里出秘宝，渡劫必给 1 件以维持收集节奏
+  setTimeout(rollRelic,1500);
+  save();
+}
+
+/* ================= 音效（WebAudio 合成，无外部资源） ================= */
+let AC=null, voices=0;
+function ac(){
+  if(!AC){ try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){} }
+  if(AC&&AC.state==='suspended') AC.resume();
+  return AC;
+}
+function tone(f,dur,type='sine',vol=.12,delay=0){
+  if(!S.sound||SILENT)return; const c=AC||ac(); if(!c)return;
+  if(voices>20)return;          // 声部预算：后期合成极密集，超额同时发声会爆音
+  voices++;
+  const t0=c.currentTime+delay;
+  const o=c.createOscillator(), g=c.createGain();
+  o.type=type; o.frequency.setValueAtTime(f,t0);
+  g.gain.setValueAtTime(0,t0);
+  g.gain.linearRampToValueAtTime(vol,t0+0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);
+  o.onended=()=>{ voices--; };
+  o.connect(g); g.connect(c.destination); o.start(t0); o.stop(t0+dur+0.02);
+}
+function sfxClick(f){ tone(f||820,0.06,'square',0.05); }
+function sfxDraw(t){
+  tone(500+t*90,0.07,'triangle',0.06);
+  if(t>=3) for(let i=0;i<=t-2;i++) tone(520*Math.pow(1.18,i+t),0.16,'sine',0.09,i*0.07);
+}
+function sfxMerge(nt,depth){
+  const base=340*Math.pow(1.12,nt)+depth*40;
+  [0,1,2].forEach(i=>tone(base*Math.pow(1.26,i),0.12,'triangle',0.07,i*0.045));
+}
+function sfxRelic(){ [0,3,7,10,14].forEach((s,i)=>tone(440*Math.pow(2,s/12),0.5,'sine',0.1,i*0.09)); }
+function sfxAscend(){ [0,4,7,12,16,19,24].forEach((s,i)=>tone(330*Math.pow(2,s/12),0.8,'sine',0.11,i*0.11)); }
+
+/* ================= 特效 ================= */
+const cv=$('#fx'), cx=cv.getContext('2d');
+let PT=[], shakeAmt=0, VW=innerWidth, VH=innerHeight;
+const RM = matchMedia('(prefers-reduced-motion:reduce)').matches;
+function resize(){
+  VW=innerWidth; VH=innerHeight;
+  // 不乘 devicePixelRatio 的话，粒子在 Retina 上是一团糊的
+  const d=Math.min(2,window.devicePixelRatio||1);
+  cv.width=Math.floor(VW*d); cv.height=Math.floor(VH*d);
+  cv.style.width=VW+'px'; cv.style.height=VH+'px';
+  cx.setTransform(d,0,0,d,0,0);
+}
+addEventListener('resize',resize); resize();
+function btnCenter(){ const r=$('#bigBtn').getBoundingClientRect(); return {x:r.left+r.width/2,y:r.top+r.height/2}; }
+function burst(color,n,px,py){
+  const c=(px==null)?btnCenter():{x:px,y:py};
+  for(let i=0;i<n;i++){
+    const a=rnd(0,Math.PI*2), sp=rnd(1.5,9);
+    PT.push({x:c.x,y:c.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-2,life:1,col:color,sz:rnd(1.5,4.5)});
+  }
+  if(PT.length>600) PT=PT.slice(-600);
+}
+function drawFX(){
+  cx.clearRect(0,0,VW,VH);
+  for(let i=PT.length-1;i>=0;i--){
+    const p=PT[i]; p.x+=p.vx; p.y+=p.vy; p.vy+=0.22; p.vx*=0.99; p.life-=0.016;
+    if(p.life<=0){ PT.splice(i,1); continue; }
+    cx.globalAlpha=Math.max(0,p.life); cx.fillStyle=p.col;
+    cx.beginPath(); cx.arc(p.x,p.y,p.sz*p.life+0.4,0,7); cx.fill();
+  }
+  cx.globalAlpha=1;
+  if(shakeAmt>0.2){
+    shakeAmt*=0.86;
+    $('#shake').style.transform=`translate(${rnd(-shakeAmt,shakeAmt)}px,${rnd(-shakeAmt,shakeAmt)}px)`;
+  }else if(shakeAmt){ shakeAmt=0; $('#shake').style.transform=''; }
+}
+function shake(a){ if(RM)return; shakeAmt=Math.max(shakeAmt,a); }
+function floatText(txt,x,y,col,size){
+  const d=document.createElement('div');
+  d.className='ft'; d.textContent=txt;
+  d.style.cssText+=`left:${x}px;top:${y}px;color:${col};font-size:${size||14}px;transform:translate(-50%,-50%)`;
+  document.body.appendChild(d);
+  const dy=rnd(-70,-110), dx=rnd(-26,26);
+  d.animate([{transform:'translate(-50%,-50%) scale(.5)',opacity:0},
+             {transform:`translate(calc(-50% + ${dx*.3}px),calc(-50% + ${dy*.3}px)) scale(1.15)`,opacity:1,offset:.22},
+             {transform:`translate(calc(-50% + ${dx}px),calc(-50% + ${dy}px)) scale(1)`,opacity:0}],
+    {duration:1150,easing:'cubic-bezier(.2,.9,.3,1)'}).onfinish=()=>d.remove();
+}
+function flashScreen(){ if(RM)return; const f=$('#flash'); f.classList.remove('go'); void f.offsetWidth; f.classList.add('go'); }
+function showBanner(em,tier,name,sub,col){
+  /* 时间戳由 showBanner 自己记，而不是只由 celebrate 记。
+     否则归元、渡劫这些直接调 showBanner 的横幅不会建立任何保护窗口，
+     紧接着的 celebrate 可以在几毫秒内把它盖掉。 */
+  lastBanner=performance.now();
+  const b=$('#banner'), r=$('#rays');
+  $('#bnEm').textContent=em; $('#bnTier').textContent=tier; $('#bnName').textContent=name; $('#bnSub').textContent=sub;
+  b.style.color=col||'#ffd479';
+  $('#bnTier').style.color=col||'#ffd479';
+  b.classList.remove('show'); r.classList.remove('go'); void b.offsetWidth;
+  b.classList.add('show'); r.classList.add('go');
+}
+let lastBanner=0, lastFlash=0, lastFloat=0, lastLog=0, lastSellLog=0, logT=0;
+function celebrate(t,fromMerge){
+  if(SILENT)return;
+  const T=TIERS[t], now=performance.now();
+  /* 只有「接近当前最高境界」的稀有度才配得上全屏大招。
+     否则后期仙品满地跑，会变成每秒闪白 + 横幅遮屏，爽感直接变噪音。 */
+  const big = t>=4 && t>=S.best-1;
+  if(big){ if(now-lastFlash>700){ lastFlash=now; flashScreen(); } shake(t>=6?16:9); }
+  else shake(t>=4?6:4);
+  burst(T.c, Math.min(90,16+t*11));
+  if(big && now-lastBanner>1100){ showBanner(T.i,T.n,T.item,SUBS[Math.min(SUBS.length-1,t-4)],T.c); }
+  if(t>=3){
+    // 后期几乎每抽都是极品以上，不节流的话飘字与日志会变成纯噪音（并且持续堆 DOM）
+    if(now-lastFloat>260){
+      lastFloat=now;
+      const c=btnCenter();
+      floatText(`${T.i} ${T.n}·${T.item}`,c.x,c.y-92,T.c,14+t*1.6);
+    }
+    if(t>=5 && now-lastLog>600){ lastLog=now; log(`${T.i} ${fromMerge?'合成':'抽到'}【${T.n}·${T.item}】`); }
+  }
+}
+function nearMiss(){
+  if(SILENT)return;
+  const c=btnCenter();
+  floatText('差 一 点…',c.x,c.y-70,'#ff6f8b',15);
+  tone(300,0.13,'sawtooth',0.05); tone(220,0.18,'sawtooth',0.04,0.09);
+}
+function log(t){
+  const l=$('#log'); const d=document.createElement('div'); d.className='li'; d.textContent=t;
+  d.dataset.at=performance.now();
+  l.appendChild(d);
+  while(l.children.length>7) l.firstChild.remove();
+  /* 以前每条日志各排一个 4.2 秒的 setTimeout。后期满格时每次抽卡都会触发
+     一条自动出售日志（每秒十几条），于是并存十几个定时器，
+     而它们到期时要移除的节点早已被「最多 7 条」挤掉了。
+     改成单个共享的清扫定时器，日志空了就自己停。 */
+  if(!logT) logT=setInterval(()=>{
+    const now=performance.now(), l2=$('#log');
+    while(l2.firstChild && now-(+l2.firstChild.dataset.at)>4200) l2.firstChild.remove();
+    if(!l2.children.length){ clearInterval(logT); logT=0; }
+  },700);
+}
+/* ---- 转盘：复用 DOM 单元，避开每抽重建 innerHTML ---- */
+const RW=54, RN=15, RK=11;
+let rcells=null;
+function reelCells(){
+  if(!rcells){
+    const inn=$('#reelIn');
+    inn.innerHTML=new Array(RN).fill('<div class="rcell"></div>').join('');
+    rcells=[...inn.children];
+  }
+  return rcells;
+}
+function fillReel(res){
+  const cs=reelCells();
+  for(let i=0;i<RN;i++){
+    let t;
+    if(i===RK&&res!=null) t=res;
+    else if(i===RK+1 && res!=null && res<=1 && Math.random()<0.5) t=4+Math.floor(Math.random()*3);
+    else t=Math.random()<0.72?Math.floor(Math.random()*3):Math.floor(Math.random()*7);
+    const c=cs[i];
+    if(c._t!==t){ c._t=t; c.textContent=TIERS[t].i; c.style.color=TIERS[t].c; }
+  }
+}
+function spinReel(res){
+  if(SILENT)return;
+  const inn=$('#reelIn');
+  fillReel(res);
+  const end=$('#reel').clientWidth/2-(RK*RW+RW/2);
+  inn.style.transition='none';
+  inn.style.transform=`translateX(${end+RW*4.6}px)`;
+  void inn.offsetWidth;
+  inn.style.transition='transform .34s cubic-bezier(.15,.75,.2,1)';
+  inn.style.transform=`translateX(${end}px)`;
+}
+function initReel(){
+  fillReel(null);
+  $('#reelIn').style.transform=`translateX(${$('#reel').clientWidth/2-(RK*RW+RW/2)}px)`;
+}
+/* 首次点击前的召唤，以及副文案的设备适配。
+   副文案原本写死成「点击 / 空格」，而手机上根本没有空格键 ——
+   在一个以手机为主的点击游戏里，第一眼就给一个用不了的指令。
+   用 hover:none 而不是 ontouchstart 判断：后者在触屏笔记本上也为真，
+   而那类设备是有键盘的。matchMedia 在无 UI 环境里可能不存在，须先探测。 */
+let guideOn=false;
+function syncGuide(){
+  guideOn = S.draws===0;
+  const w=$('#bigWrap'); if(w) w.classList.toggle('guide',guideOn);
+  const sub=$('#bbSub'); if(!sub)return;
+  const touch = typeof matchMedia==='function' && matchMedia('(hover:none)').matches;
+  sub.textContent = guideOn ? '轻 触 开 始' : (touch ? '连续轻触' : '点击 / 空格');
+}
+/* ================= 渲染 ================= */
+let dirty=true, lastTab='', curCps=0, lastPanelSig='';
+/* renderTop 每帧跑，直接 querySelector + 写 textContent 会白白烧掉20多次查询与重排 */
+const _E={};
+function gel(id){ return _E[id]||(_E[id]=document.getElementById(id)); }
+function setTxt(id,v){ const n=gel(id); if(n._v!==v){ n._v=v; n.textContent=v; } }
+function setSty(id,prop,v){ const n=gel(id); const k='_s'+prop; if(n[k]!==v){ n[k]=v; n.style[prop]=v; } }
+function renderTop(){
+  setTxt('sCoin',fmt(S.coin));
+  setTxt('sCps',fmt(curCps));
+  setTxt('sDraw',fmt(S.draws));
+  setTxt('sBest',TIERS[S.best].n);
+  setSty('sBest','color',TIERS[S.best].c);
+  setTxt('sDao', daoLeft()===S.dao ? fmt(S.dao) : fmt(daoLeft())+'/'+fmt(S.dao));
+  // 天命显示真实倍率（会一路涨到几千 %），而不是被锁在 24~34% 的跃升概率——
+  // 后者会让玩家觉得核心升级“买了没用”。跃升概率改放到大按钮下方。
+  // 天命一旦过了饱和点，后面叠的部分完全不改变跃升概率，所以顺手把道韵抬上来，
+  // 否则玩家只能看到一个狂涨但毫无反应的数字。
+  const rv=reso();
+  setTxt('sLuck','×'+(luckMul()<100?luckMul().toFixed(2):fmt(luckMul()))+(rv>=1?'・韵'+Math.round(rv):''));
+  setTxt('bbSub','跃升 '+(Math.round(upChance()*1000)/10)+'%');
+  const g=ascendGain();
+  setTxt('btnAscend',g>0?`渡劫 +${g}`:'渡劫');
+  gel('btnAscend').classList.toggle('rdy',g>0);
+  const need=pityNeed();
+  setSty('pityFill','width',Math.min(100,S.pityL/need*100)+'%');
+  setTxt('pityTxt',`保底 ${S.pityL}/${need} → 必出灵品 ｜ 神品保底 ${S.pityH}/${pityHigh()}`);
+  const ct=gel('comboTxt');
+  if(S.combo>1){ ct.classList.add('on'); setTxt('comboTxt','×'+S.combo); }
+  else ct.classList.remove('on');
+  const left=clamp(1-(performance.now()-S.comboT)/comboWin(),0,1);
+  setSty('ringFill','strokeDashoffset',289*(1-(S.combo>0?left:0))+'');
+  setSty('ringFill','stroke',S.combo>=comboMax()*0.7?'#ffd479':'#ff4d6d');
+  setTxt('boardInfo',`${S.board.length}/${slots()}`);
+  gel('btn10').disabled=!U('ten');
+  gel('btnAuto').disabled=!U('auto');
+  gel('btnAuto').classList.toggle('on',S.auto);
+  setTxt('btnAuto',S.auto?'自动中…':'自动抽卡');
+  setTxt('btnSound',S.sound?'🔊':'🔇');
+}
+function renderBoard(){
+  const bd=gel('board'), need=slots();
+  while(bd.children.length<need){ const d=document.createElement('div'); d.className='slot'; d.dataset.k='0'; bd.appendChild(d); }
+  while(bd.children.length>need) bd.lastChild.remove();
+  for(let i=0;i<need;i++){
+    const el=bd.children[i], it=S.board[i], key=it?it.id:0;
+    if(+el.dataset.k===key){
+      if(it&&mergeMark.has(it.id)&&!el.classList.contains('mg')) el.classList.add('mg');
+      continue;
+    }
+    el.dataset.k=key;
+    el.classList.remove('mg','pop','hi');
+    if(!it){ el.className='slot'; el.innerHTML=''; el.style.cssText=''; continue; }
+    const T=TIERS[it.t];
+    el.className='slot f'+(it.fresh?' pop':'')+(it.t>=7?' rainbow':'');
+    el.style.cssText=`border-color:${T.c}66;background:radial-gradient(circle at 50% 35%,${T.c}30,rgba(255,255,255,.02));box-shadow:0 0 ${it.t*2.4}px ${T.c}55`;
+    el.innerHTML=`<div class="em">${T.i}</div><div class="nm" style="color:${T.c}">${T.item}</div>`+(it.t>=5?'<div class="shine"></div>':'');
+    it.fresh=0;
+  }
+  mergeMark.clear();
+}
+function alertTab(t){ const e=document.querySelector(`.tab[data-t="${t}"]`); if(e&&S.tab!==t)e.classList.add('alert'); }
+function renderPanel(){
+  const p=gel('panel'); let h='';
+  if(S.tab==='up'){
+    h+=`<div style="font-size:10.5px;color:#8b84a6;margin:0 2px 8px;line-height:1.5">
+      消耗<b style="color:#ffd479">仙缘</b>提升修行。天命越高，抽卡时「境界跃升」概率越大 —— 当前每次跃升概率 <b style="color:#8ff5ff">${Math.round(upChance()*1000)/10}%</b></div>`;
+    UPS.forEach(u=>{
+      /* 锁着的项仍然列出来，并直接写明解锁条件 —— 这本身就是下一个目标。
+         藏成 ??? 反而会让玩家不知道在期待什么，不合「无脑」的定位。 */
+      if(!upOpen(u.k)){
+        h+=`<div class="up no">
+          <div class="ic" style="opacity:.45">🔒</div>
+          <div class="bd"><div class="t1" style="color:#6b6482">${u.n}</div>
+          <div class="t2" style="color:#8b84a6">${UPGATE[u.k].txt} 后开启</div></div>
+          <div class="pr"><b style="color:#6b6482">未</b><span>开启</span></div></div>`;
+        return;
+      }
+      const lv=U(u.k), maxed=lv>=u.max, c=upCost(u), can=S.coin>=c&&!maxed;
+      h+=`<div class="up ${can?'':'no'} ${maxed?'max':''}" data-up="${u.k}">
+        <div class="ic">${u.i}</div>
+        <div class="bd"><div class="t1">${u.n}<i>Lv.${lv}${maxed?'':'/'+u.max}</i></div>
+        <div class="t2">${u.d(lv)}</div></div>
+        <div class="pr"><b>${maxed?'圆满':fmt(c)}</b><span>${maxed?'':'仙缘'}</span></div></div>`;
+    });
+  }
+  else if(S.tab==='relic'){
+    const own=Object.keys(S.relics).length;
+    h+=`<div style="font-size:10.5px;color:#8b84a6;margin:0 2px 9px;line-height:1.5">
+      已收集 <b style="color:#ffd479">${own}/16</b> 件秘宝 ｜ 每件永久生效，可叠加。<br>
+      获取途径：首次解锁<b style="color:#ffd479">仙品及以上</b>境界、完成天命任务。</div><div class="grid4">`;
+    RELICS.forEach(r=>{
+      const n=S.relics[r.k]||0;
+      /* 层数 tooltip 不能再写「效果 ×n」—— 十二件秘宝都有硬上限，
+         那句话在饱和之后是彻头彻尾的谎话（瑞兽从第 2 层起就已经在骗人）。 */
+      const ov = r.sat!==Infinity ? Math.max(0,n-r.sat) : 0;
+      const tip = n<=1 ? r.d
+        : r.sat===Infinity ? `${r.d}<br>叠加 ${n} 层 → 效果 ×${n}`
+        : `${r.d}<br>叠加 ${n} 层（效果饱和于 ${r.sat} 层）${ov?`<br>溢出 ${ov} 层 → <b>道韵 +${ov}</b>`:''}`;
+      h+=`<div class="relic ${n?'own':'lock'}" data-tip="<b>${r.n}</b><br>${tip}">
+        <div class="re">${n?r.e:'❔'}</div><div class="rn">${n?r.n:'未知'}</div>${n>1?`<div class="lv">${n}</div>`:''}</div>`;
+    });
+    h+='</div>';
+    const rv=reso();
+    h+=`<div style="margin-top:10px;padding:10px;border-radius:11px;border:1px dashed rgba(143,245,255,.22);font-size:10.5px;color:#8b84a6;line-height:1.7">
+      <b style="color:#8ff5ff">道韵 ${rv.toFixed(1)}</b>（秘宝溢出 ${B.rover} + 天命溢出 ${resoLuck().toFixed(1)}）
+      <hr style="border:none;border-top:1px solid rgba(143,245,255,.16);margin:6px 0">
+      很多加成有硬上限（天命对跃升概率的作用到 ×${LUCK_SAT} 就封顶）。
+      超出部分不会浪费，而是转为<b>道韵</b>：<br>
+      仙缘与每秒收益 <b style="color:#ffd479">+${Math.round(rv*5)}%</b>，
+      渡劫获得道行 <b style="color:#ff9cf0">+${Math.round(rv*2)}%</b></div>`;
+  }
+  else if(S.tab==='codex'){
+    h+=`<div style="font-size:10.5px;color:#8b84a6;margin:0 2px 9px;line-height:1.5">
+      每解锁一个境界，永久 <b style="color:#ffd479">天命 +4%、仙缘 +8%</b>。合成三个同阶物品即可升阶。</div>`;
+    TIERS.forEach((T,i)=>{
+      const ok=S.codex[i];
+      h+=`<div class="codex ${ok?'':'lk'}" style="${ok?`border-color:${T.c}55`:''}">
+        <div class="ce">${ok?T.i:'❔'}</div>
+        <div class="cb"><div class="cn" style="color:${ok?T.c:'#8b84a6'}">${T.n} · ${ok?T.item:'？？？'}</div>
+        <div class="cd">价值 ${fmt(T.v)} ｜ 需 3×${i>0?TIERS[i-1].n:'—'} 合成</div></div>
+        <div class="cc">${ok?'已解锁':'—'}</div></div>`;
+    });
+  }
+  else if(S.tab==='dao'){
+    h+=`<div style="font-size:10.5px;color:#8b84a6;margin:0 2px 8px;line-height:1.5">
+      消耗<b style="color:#ff9cf0">道行</b>刻下道纹 —— <b>渡劫不重置、没有上限</b>。<br>
+      可用道行 <b style="color:#ff9cf0">${fmt(daoLeft())}</b> ／ 累计 ${fmt(S.dao)}</div>`;
+    DAOS.forEach(d=>{
+      const lv=D(d.k), maxed=!!(d.max&&lv>=d.max), c=daoCost(d), can=daoLeft()>=c&&!maxed;
+      h+=`<div class="up ${can?'':'no'} ${maxed?'max':''}" data-dao="${d.k}">
+        <div class="ic">${d.i}</div>
+        <div class="bd"><div class="t1">${d.n}<i>Lv.${lv}${d.max?'/'+d.max:''}</i></div>
+        <div class="t2">${maxed?d.d(lv):'下一级 → '+d.d(lv+1)}</div></div>
+        <div class="pr"><b>${maxed?'圆满':fmt(c)}</b><span>${maxed?'':'道行'}</span></div></div>`;
+    });
+    h+=`<div style="margin-top:10px;padding:10px;border-radius:11px;border:1px dashed rgba(255,156,240,.22);font-size:10.5px;color:#8b84a6;line-height:1.7">
+      <b style="color:#ff9cf0">道行来源</b><hr style="border:none;border-top:1px solid rgba(255,156,240,.16);margin:6px 0">
+      渡劫（本次需 <b style="color:${TIERS[reqTier()].c}">${TIERS[reqTier()].n}</b> 境界，每渡两次门槛 +1 阶）<br>
+      洞天中<b>三尊${TIERS[MAXT].n}归元</b> → 道行 +1，并让<b>本次渡劫</b>额外 +5 道行<br>
+      本周目已归元 <b style="color:#ff9cf0">${S.originRun||0}</b> 尊<br>
+      每点道行另有永久加成：天命 +12%、仙缘 +20%</div>`;
+  }
+  else{
+    h+=`<div style="font-size:10.5px;color:#8b84a6;margin:0 2px 9px;line-height:1.5">
+      完成后点击领取，立刻刷新新任务。部分任务额外赠送 <b style="color:#ffd479">秘宝</b>。</div>`;
+    S.quests.forEach((q,i)=>{
+      const r=clamp(q.have/q.need,0,1);
+      h+=`<div class="quest ${q.done?'done':''}" data-q="${i}">
+        <div class="qt"><div>${q.txt}</div><span>${fmt(Math.min(q.have,q.need))}/${fmt(q.need)}</span></div>
+        <div class="qbar"><i style="width:${r*100}%"></i></div>
+        <div class="qr">${q.done?'▶ 点击领取':'奖励'} +${fmt(q.rw)} 仙缘${q.relic?' ＋ 秘宝 ×1':''}</div></div>`;
+    });
+    h+=`<div style="margin-top:10px;padding:10px;border-radius:11px;border:1px dashed rgba(255,255,255,.12);font-size:10.5px;color:#8b84a6;line-height:1.7">
+      <b style="color:#ffd479">纪录</b><hr style="border:none;border-top:1px solid rgba(255,215,140,.14);margin:6px 0">
+      最高连击 ${S.comboBest} ｜ 合成次数 ${fmt(S.merges)}<br>
+      最长连锁 ${Math.max(1,S.stat.chain)} ｜ 渡劫 ${S.ascends} 次<br>
+      ${TIERS[MAXT].n}归元 ${S.stat.origin||0} 次 ｜ 累计道行 ${fmt(S.dao)}<br>
+      累计仙缘 ${fmt(S.earned)} ｜ 在线 ${Math.floor(S.playMs/60000)} 分钟</div>`;
+  }
+  /* 面板每 140ms 重建一次，直接写 innerHTML 会把 scrollTop 打回 0，
+     导致自动抽卡时根本无法浏览修行列表 / 图鉴。 */
+  if(h===lastPanelSig && S.tab===lastTab) return;
+  const same=S.tab===lastTab;
+  const st=same?p.scrollTop:0;
+  lastPanelSig=h; lastTab=S.tab;
+  p.innerHTML=h;
+  if(st) p.scrollTop=st;
+}
+
+/* ================= 交互 ================= */
+$('#bigBtn').addEventListener('click',()=>{ ac(); draw(false); });
+let holdT=null, holdI=null;
+function holdStart(e){
+  ac();
+  holdT=setTimeout(()=>{ holdI=setInterval(()=>draw(false),150); },330);
+}
+function holdEnd(){ clearTimeout(holdT); clearInterval(holdI); holdI=null; }
+$('#bigBtn').addEventListener('mousedown',holdStart);
+$('#bigBtn').addEventListener('touchstart',e=>{e.preventDefault();holdStart();draw(false);},{passive:false});
+['mouseup','mouseleave','touchend','touchcancel'].forEach(ev=>$('#bigBtn').addEventListener(ev,holdEnd));
+let lastKeyDraw=0;
+const modalOpen=()=>gel('modal').classList.contains('on');
+addEventListener('keydown',e=>{
+  if(e.key==='Escape'){ gel('modal').classList.remove('on'); hideTip(); return; }
+  if(modalOpen())return;                 // 弹窗开着时按空格不应该隐形抽卡
+  if(e.code==='Space'){
+    e.preventDefault(); ac();
+    const t=performance.now();
+    if(t-lastKeyDraw<90)return;          // 长按空格的系统重复速率不可控，必须自己节流
+    lastKeyDraw=t; draw(false);
+  }
+  else if(e.key==='q'||e.key==='Q'){ if(U('ten')){ ac(); ten(); } }
+  else if(e.key==='a'||e.key==='A'){ toggleAuto(); }
+});
+$('#btn10').addEventListener('click',()=>{ ac(); ten(); sfxClick(1000); });
+$('#btnAuto').addEventListener('click',toggleAuto);
+function toggleAuto(){ if(!U('auto'))return; S.auto=!S.auto; sfxClick(S.auto?1100:600); dirty=true; }
+$('#btnSellAll').addEventListener('click',()=>{
+  bonus(); let g=0,n=0;
+  for(let i=S.board.length-1;i>=0;i--) if(S.board[i].t<=1){ g+=sellValue(S.board[i].t); S.board.splice(i,1); n++; }
+  if(n){ addCoin(g); log(`🧹 清扫 ${n} 件凡物 +${fmt(g)} 仙缘`); sfxClick(700); burst('#9aa4b2',18); }
+  else { log('🧹 洞天里没有凡品 / 良品可清扫'); sfxClick(300); }
+  dirty=true;
+});
+$('#btnSound').addEventListener('click',()=>{ S.sound=!S.sound; if(S.sound){ac();sfxClick(900);} dirty=true; });
+$('#btnAscend').addEventListener('click',()=>{
+  const g=ascendGain();
+  if(g<=0){ modal('渡 劫',`本次需先达到 <b style="color:${TIERS[reqTier()].c}">${TIERS[reqTier()].n}</b> 境界方可渡劫（当前 <b>${TIERS[S.best].n}</b>）。<hr>渡劫将清空：仙缘、洞天、全部修行等级。<br>永久保留：<b>秘宝</b>、<b>图鉴</b>、<b>道行</b>。<br><br>每点道行永久提升 <b>天命 +12%</b>、<b>仙缘 +20%</b>。<br><span style="color:#8b84a6">每渡劫两次，下一次的门槛会提高一个境界。</span>`,[['知道了',null]]); return; }
+  modal('渡 劫 飞 升',`本次可获得 <b>道行 +${g}</b>（当前 ${S.dao} → ${S.dao+g}）<hr>
+    清空：仙缘 / 洞天所有物品 / 全部修行等级<br>保留：秘宝 ${Object.keys(S.relics).length} 件 · 图鉴 ${Object.keys(S.codex).length} 条<br><br>
+    收益：天命 <b>+${g*12}%</b>、仙缘 <b>+${g*20}%</b>（永久叠加）<br>
+    ${originHint()}
+    <span style="color:#8b84a6">下一次渡劫需要：<b>${TIERS[Math.min(MAXT,7+Math.floor((S.ascends+1)/2))].n}</b></span>`,
+    [['再想想',null],['立即渡劫',doAscend,1]]);
+});
+/* 渡劫弹窗里交代「本周目归元」到底带来了多少道行。
+   快刷玩家这里永远是 0，看到的只是一句中性提示；
+   而挂机很久才回来的玩家会看到一个很大的额外数字 —— 那份积累不能患无声无息。 */
+function originHint(){
+  const o=S.originRun||0;
+  if(!o) return `<span style="color:#8b84a6">洞天中凑成<b>三尊${TIERS[MAXT].n}</b>即可归元，每尊让本次渡劫额外 +5 道行。</span><br>`;
+  const so=S.originRun; S.originRun=0; const without=ascendGain(); S.originRun=so;
+  return `<span style="color:#ff9cf0">本周目已归元 <b>${o}</b> 尊，其中 <b>+${Math.max(0,ascendGain()-without)}</b> 道行来自于此。</span><br>`;
+}
+$('#btnMenu').addEventListener('click',()=>{
+  modal('一 键 成 仙',`
+    <b>玩法</b>：狂点中央大按钮抽卡 → 物品落入洞天 → <b>三个同阶自动合成升阶</b>（可连锁）。<hr>
+    <b>连击</b>：在连击环走完前继续抽卡即可叠加，连击同时提升<b>天命</b>与<b>仙缘</b>收益。<br>
+    <b>保底</b>：${pityNeed()} 抽必出灵品，${pityHigh()} 抽必出神品。<br>
+    <b>洞天已满</b>：自动出售最低阶物品，永不失败。<br>
+    <b>快捷键</b>：空格=抽卡，Q=十连，A=自动。长按按钮可连抽。<hr>
+    <b>数据</b>：自动存档于本机浏览器（localStorage）。`,
+    [['关闭',null],['清空存档',()=>{ if(confirm('确定清空全部进度？')){ localStorage.removeItem(SK); location.reload(); } }]]);
+});
+$('#panel').addEventListener('click',e=>{
+  const up=e.target.closest('[data-up]');
+  if(up){ buy(up.dataset.up); return; }
+  const q=e.target.closest('[data-q]');
+  if(q){ claim(+q.dataset.q); return; }
+  const dn=e.target.closest('[data-dao]');
+  if(dn){ buyDao(dn.dataset.dao); return; }
+  // 触屏设备没有 hover：不加这段，手机上 16 件秘宝的效果说明永远看不到
+  const tp=e.target.closest('[data-tip]');
+  if(tp){ const r=tp.getBoundingClientRect(); showTip(tp.dataset.tip,r.left+r.width/2,r.top,true); sfxClick(880); }
+});
+function buy(k){
+  bonus();
+  const u=UPS.find(x=>x.k===k); if(!u)return;
+  if(!upOpen(k)){ sfxClick(240); return; }         // 未到解锁进度，脉冲一声就走
+  if(U(k)>=u.max)return;
+  const c=upCost(u);
+  if(S.coin<c){ sfxClick(240); return; }
+  S.coin-=c; S.ups[k]=U(k)+1;
+  sfxClick(900+U(k)*18); burst('#ffd479',14);
+  const first=U(k)===1;
+  if(k==='auto'&&first) log('🤖 解锁自动抽卡！（按 A 开启）');
+  if(k==='ten'&&first) log('🎴 解锁十连抽！（按 Q）');
+  bonus(); dirty=true;
+}
+function buyDao(k){
+  const d=DAOS.find(x=>x.k===k); if(!d)return;
+  if(d.max&&D(k)>=d.max)return;
+  const c=daoCost(d);
+  if(daoLeft()<c){ sfxClick(240); return; }
+  S.daoUse=(S.daoUse||0)+c; S.daos[k]=D(k)+1;
+  sfxClick(1040+D(k)*16); burst('#ff9cf0',20);
+  log(`☘️ 刻下道纹【${d.n}】Lv.${D(k)} — ${d.d(D(k))}`);
+  bDirty=true; dirty=true; save();
+}
+$$('.tab').forEach(t=>t.addEventListener('click',()=>{
+  $$('.tab').forEach(x=>x.classList.remove('on'));
+  t.classList.add('on'); t.classList.remove('alert');
+  S.tab=t.dataset.t; dirty=true; sfxClick(760);
+}));
+/* 秘宝提示 */
+const tipEl=$('#tip');
+let tipTimer=null;
+function showTip(html,x,y,sticky){
+  tipEl.innerHTML=html; tipEl.style.display='block';
+  const w=tipEl.offsetWidth,h=tipEl.offsetHeight;
+  tipEl.style.left=clamp(sticky?x-w/2:x+14,6,innerWidth-w-6)+'px';
+  tipEl.style.top=clamp(y-h-12,6,innerHeight-h-6)+'px';
+  clearTimeout(tipTimer);
+  if(sticky) tipTimer=setTimeout(()=>tipEl.style.display='none',3000);
+}
+function hideTip(){ clearTimeout(tipTimer); tipEl.style.display='none'; }
+$('#panel').addEventListener('mousemove',e=>{
+  const t2=e.target.closest('[data-tip]');
+  if(!t2){ hideTip(); return; }
+  showTip(t2.dataset.tip,e.clientX,e.clientY+2,false);
+});
+$('#panel').addEventListener('mouseleave',hideTip);
+$('#panel').addEventListener('scroll',hideTip);
+/* 弹窗 */
+function modal(title,body,btns){
+  $('#mTitle').innerHTML=title; $('#mBody').innerHTML=body;
+  const w=$('#mBtns'); w.innerHTML='';
+  btns.forEach(([txt,fn,p])=>{
+    const b=document.createElement('button'); b.className='mbtn'+(p?' p':''); b.textContent=txt;
+    b.onclick=()=>{ $('#modal').classList.remove('on'); if(fn)fn(); };
+    w.appendChild(b);
+  });
+  $('#modal').classList.add('on');
+}
+$('#modal').addEventListener('click',e=>{ if(e.target.id==='modal') $('#modal').classList.remove('on'); });
+
+/* ================= 存档 ================= */
+const SK='yjcx_save_v1';
+function save(){
+  S.last=Date.now();
+  /* 存档层的最后一道防线：无论上游出了什么意外，NaN / Infinity 绝不得写盘。
+     写进去之后 load 只能把它当成 0，玩家的进度就真的没了；
+     在这里拦下来至少能保住上一次存档里的正常值。 */
+  for(const k of ['coin','earned','playMs','draws','merges','dao','pityL','pityH','comboBest','originRun']){
+    if(!isFinite(S[k])) return;
+  }
+  try{ localStorage.setItem(SK,JSON.stringify(S)); }catch(e){}
+}
+const numOr=(v,d)=>(typeof v==='number'&&isFinite(v))?v:d;
+/* 数值字段的硬封顶。numOr 只拦 NaN / Infinity，拦不住「极大但有限」：
+   1e308 能平安过 isFinite，一旦参与乘法就溢出成 Infinity 并污染整张表。
+   1e15 远高于任何真实计数（抽卡次数、渡劫次数），而仙缘这类会真的长很大，单独放宽。 */
+const CAP_CNT=1e15, CAP_BIG=1e30;
+function load(){
+  try{
+    const raw=localStorage.getItem(SK); if(!raw)return false;
+    const o=JSON.parse(raw); if(!o||typeof o!=='object')return false;
+    S=Object.assign(fresh(),o);
+    /* 容器类字段必须先正型再消毒。
+       这里曾直接 (S.board||[]).filter(...)，存档里的 board 若是字符串就会抛异常，
+       被外层 catch 吞掉后 return false —— 玩家因一个字段坏掉而失去全部进度。
+       存档消毒的底线是「能救多少救多少」，绝不能因局部损坏连坐整份。 */
+    if(!Array.isArray(S.board)) S.board=[];
+    if(!Array.isArray(S.quests)) S.quests=[];
+    if(!S.ups||typeof S.ups!=='object') S.ups={};
+    if(!S.daos||typeof S.daos!=='object') S.daos={};
+    /* 存档可能来自旧版本或被外部改坏：
+       只要漏进一个 NaN / undefined，之后所有数值运算都会永久变成 NaN。 */
+    ['draws','merges','ascends','playMs','giftAt','comboBest','pityL','pityH','originRun','mileAt']
+      .forEach(k=>{ S[k]=clamp(numOr(S[k],0),0,CAP_CNT); });
+    ['coin','earned'].forEach(k=>{ S[k]=clamp(numOr(S[k],0),0,CAP_BIG); });
+    S.dao=clamp(numOr(S.dao,0),0,CAP_CNT);
+    S.uid=Math.max(1,Math.floor(numOr(S.uid,1)));
+    S.best=clamp(Math.floor(numOr(S.best,0)),0,MAXT);
+    /* 先删掉不认识的修行键：留着不仅让存档膨胀，
+       日后若新增一项同名修行还会直接读到脏值。 */
+    Object.keys(S.ups).forEach(k=>{ if(!UPS.some(u=>u.k===k)) delete S.ups[k]; });
+    Object.keys(S.daos).forEach(k=>{ if(!DAOS.some(d=>d.k===k)) delete S.daos[k]; });
+    Object.keys(S.daos).forEach(k=>{ S.daos[k]=Math.max(0,Math.floor(numOr(S.daos[k],0))); });
+    UPS.forEach(u=>{ S.ups[u.k]=clamp(Math.floor(numOr(S.ups[u.k],0)),0,u.max); });
+    S.stat=Object.assign({merge:0,chain:0,tier3:0,relicRolls:0,origin:0},S.stat||{});
+    for(const k in S.stat) S.stat[k]=Math.max(0,numOr(S.stat[k],0));
+    S.relics=(S.relics&&typeof S.relics==='object')?S.relics:{};
+    Object.keys(S.relics).forEach(k=>{
+      if(!RELICS.some(r=>r.k===k)) delete S.relics[k];
+      else S.relics[k]=Math.max(1,Math.floor(numOr(S.relics[k],1)));
+    });
+    S.codex=(S.codex&&typeof S.codex==='object')?S.codex:{};
+    Object.keys(S.codex).forEach(k=>{ const t=+k; if(!(t>=0&&t<=MAXT)) delete S.codex[k]; });
+    S.board=S.board.filter(x=>x&&isFinite(x.t))
+      .map(x=>({t:clamp(Math.floor(x.t),0,MAXT), id:S.uid++, fresh:0}));
+    S.quests=S.quests.filter(q=>q&&QT.some(t=>t.k===q.k)&&isFinite(q.need)&&q.need>0).slice(0,3);
+    S.quests.forEach(q=>{ q.have=Math.max(0,numOr(q.have,0)); q.rw=Math.max(1,numOr(q.rw,300)); });
+    S.combo=0; S.comboT=0; S.auto=!!S.auto; S.sound=S.sound!==false;
+    S.ascends=Math.max(0,Math.floor(numOr(S.ascends,0)));
+    S.daos=(S.daos&&typeof S.daos==='object')?S.daos:{};
+    Object.keys(S.daos).forEach(k=>{ if(!DAOS.some(d=>d.k===k)) delete S.daos[k]; });
+    DAOS.forEach(d=>{ S.daos[d.k]=clamp(Math.floor(numOr(S.daos[d.k],0)),0,d.max||9999); });
+    /* 已用道行必须由实际等级反推，而不是直接信存档里的数：
+       一次存档损坏否则会永久锁死所有道行（daoUse 偏大）或白送道行（偏小）。 */
+    S.daoUse=0;
+    DAOS.forEach(d=>{ for(let i=0;i<D(d.k);i++) S.daoUse+=Math.floor(d.base*(i+1)*(1+i*0.22)); });
+    if(!['up','relic','codex','quest','dao'].includes(S.tab)) S.tab='up';
+    if(!TIERS[S.best]) S.best=0;
+    return true;
+  }catch(e){ return false; }
+}
+function offline(){
+  const dt=Math.min(1000*60*60*12,Date.now()-(S.last||Date.now()));
+  if(dt<60000){ S.last=Date.now(); return; }
+  bonus();
+  const cps0=cps();
+  const mins=Math.floor(dt/60000);
+  let extra='';
+  if(S.auto&&U('auto')){
+    // 离线效率约为在线的 1/8，且尊重太阳精 / 御风诀的加速（以前公式漏了 B.auto）
+    const iv=autoIv();
+    const n=Math.min(600,Math.floor(dt/iv/8));
+    const before=S.best, mg0=S.merges, rl0=S.stat.relicRolls;
+    SILENT=BATCH=true;
+    /* 必须同步合成：异步 mergeChain 会全部堆到归来之后才执行，
+       结果是离线抽卡变成「只触发自动出售」（根本升不了阶），
+       同时在玩家归来瞬间炸出一长串动画与音效。 */
+    for(let i=0;i<n;i++){ draw(true); mergeSync(80); }
+    SILENT=BATCH=false; S.combo=0; S.comboT=0;
+    const rl=S.stat.relicRolls-rl0;
+    extra=`<br>傀儡道童替你抽了 <b>${n}</b> 次卡，合成 <b>${S.merges-mg0}</b> 次`
+      +(S.best>before?`，境界突破至 <b style="color:${TIERS[S.best].c}">${TIERS[S.best].n}</b>`:'')
+      +(rl>0?`，得秘宝 <b>${rl}</b> 件`:'')+'。';
+  }
+  // 收益按补抽前后的 cps 均值结算：否则洞天变强了但收益仍按离开时的空盘算
+  const g=(cps0+cps())/2*(1+B.off)*0.55*(dt/1000);
+  S.coin+=g; S.earned+=g;
+  /* 先落盘再弹窗：不立即 save 的话，主循环要等 5 秒才存档，
+     玩家在这 5 秒内反复刷新就能重复领取同一段离线收益。 */
+  S.last=Date.now(); save();
+  if(g<=0&&!extra)return;
+  setTimeout(()=>modal('闭 关 归 来',
+    `你离开了 <b>${mins<60?mins+' 分钟':Math.floor(mins/60)+' 小时 '+mins%60+' 分'}</b><hr>
+     洞天自行运转，获得 <b>${fmt(g)}</b> 仙缘${extra}`,[['继续修行',null,1]]),420);
+}
+
+/* ================= 主循环 ================= */
+let autoAcc=0, lastT=performance.now(), lastSave=0, lastPanel=0, focused=true;
+addEventListener('blur',()=>focused=false); addEventListener('focus',()=>focused=true);
+function frame(now){
+  /* now 必须正型。rAF 按规范会传时间戳，但一旦有人把 rAF 换成不带参数的回调
+     （浏览器扩展、性能工具、polyfill 都可能这么做），now 就是 undefined：
+     dt 变 NaN → coin/earned/playMs 全变 NaN，而 lastT=now 让污染永久化，
+     下一次自动存档直接把 NaN 写盘 —— 玩家的仙缘就没了。实测复现过。 */
+  if(!(typeof now==='number'&&isFinite(now))) now=performance.now();
+  const dt=Math.min(200,Math.max(0,now-lastT)); lastT=now;
+  if(focused)S.playMs+=dt;
+  bonus();
+  // 被动收益（cps 每帧只算一次，以前一帧要遍历整个棋盘三次）
+  curCps=cps();
+  const inc=curCps*dt/1000;
+  S.coin+=inc; S.earned+=inc; bump('coin',inc);
+  // 连击衰减
+  if(S.combo>0 && now-S.comboT>comboWin()){ S.combo=0; dirty=true; }
+  checkUpUnlock();                 // 修行的渐进解锁（共 6 项，每帧一轮极廉）
+  // 自动抽卡：间隔下限 + 每帧上限。
+  // 不加护栏的话，太阳精叠高后 iv 会跌到 1~2ms，单帧抽上百次直接卡死。
+  if(S.auto&&U('auto')){
+    const iv=autoIv();
+    autoAcc=Math.min(autoAcc+dt,iv*8);
+    let guard=0;
+    while(autoAcc>=iv&&guard++<8){ autoAcc-=iv; draw(true); }
+  }
+  drawFX(); renderTop(); renderBoard();
+  // 面板重建较重，限制到 ~7fps，不影响手感
+  if(dirty && now-lastPanel>140){ lastPanel=now; ensureQuests(); renderPanel(); dirty=false; }
+  if(now-lastSave>5000){ lastSave=now; save(); }
+  requestAnimationFrame(frame);
+}
+/* 切到后台再回来也应该结算离线收益：
+   rAF 在后台会被暂停，之前只有整页重载才能拿到离线收益，
+   切个标签去忙一小时回来等于白白损失。 */
+let hiddenAt=0;
+addEventListener('visibilitychange',()=>{
+  if(document.hidden){ hiddenAt=Date.now(); save(); }
+  else if(hiddenAt){
+    const gap=Date.now()-hiddenAt; hiddenAt=0;
+    lastT=performance.now(); autoAcc=0; S.combo=0; S.comboT=0;
+    if(gap>=60000){ S.last=Date.now()-gap; offline(); }
+  }
+});
+
+/* ================= 启动 ================= */
+const had=load();
+bDirty=true; bonus();
+// 上限收紧后，老存档的洞天可能超出格子数（多出来的物品不可见却仍在算收益）
+if(S.board.length>slots()) S.board.length=slots();
+S.quests.forEach(q=>{ if(q.k==='combo') q.need=Math.min(q.need,comboMax()); });
+mergeSync(200);
+/* 必须在 mergeSync 之后：它会推高 merges，而开辟洞天的门槛正是 merges。
+   这一步把老存档已经满足的项静默记下，不补弹横幅；
+   新开局时一项也不满足，所以六个解锁时刻会完整地一个个到来。 */
+syncUpSeen();
+ensureQuests(); initReel(); syncGuide();
+if(!had){
+  setTimeout(()=>modal('一 键 成 仙',
+   `一个只需要 <b>一根手指</b> 的游戏。<hr>
+    ① 狂点中央大按钮 <b>抽卡</b><br>
+    ② 洞天里 <b>三个同阶自动合成</b> 升阶，会连锁爆炸<br>
+    ③ 稀有度全靠 <b>运气</b>，但「天命」可以买<br>
+    ④ <b>修行</b>会随你的进度一项项开启，锁着的那几项写明了条件<br>
+    ⑤ 收集 <b>16 件秘宝</b> 与 <b>12 阶图鉴</b>，永久变强<br>
+    ⑥ 混沌之后可 <b>渡劫</b>，用一切换取永久道行<hr>
+    <span style="color:#ff9cf0">警告：本游戏没有失败，也没有终点。</span>`,
+   [['开始抽卡',()=>{ac();},1]]),300);
+}else offline();
+$$('.tab').forEach(t=>t.classList.toggle('on',t.dataset.t===S.tab));
+requestAnimationFrame(frame);
+addEventListener('beforeunload',save);
+</script>
+
+  <div class="ad-slot" data-ad-slot="bannerBottom"></div>
+  <script src="../config.js"></script>
+  <script src="../ads.js"></script>
+<script>
+/* Web 版启动器：立即执行游戏主脚本，存档走 localStorage */
+FBStore.boot(function () {
+  var s = document.createElement('script');
+  s.textContent = document.getElementById('game-src').textContent;
+  document.body.appendChild(s);
+});
+</script>
+
+<script>
+/* Web 版扩展：抽卡间隙插屏位（占位）。每点 30 次抽卡按钮触发一次
+   Ads.interstitial，未在 config.js 配置广告代码时为空操作，不影响游戏。 */
+(function () {
+  var n = 0;
+  var b = document.getElementById('bigBtn');
+  if (b) b.addEventListener('click', function () {
+    n++;
+    if (n % 30 === 0 && window.Ads) Ads.interstitial('xiuxian-draw-30');
+  });
+})();
+</script>
+</body>
+</html>

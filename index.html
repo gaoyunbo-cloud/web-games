@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>小游戏合集 · 一键成仙 / 合成大西瓜</title>
+<meta name="description" content="两个开箱即玩的 HTML5 小游戏：一键成仙（放置抽卡）与合成大西瓜（物理合成）。">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: #0d0b16; color: #e9e4f5; min-height: 100vh;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 28px 16px 40px;
+  }
+  h1 { font-size: 26px; letter-spacing: 4px; color: #ffd479; margin: 10px 0 6px; text-align: center; }
+  .sub { color: #8b84a6; font-size: 14px; margin-bottom: 26px; text-align: center; }
+  .games { display: flex; flex-wrap: wrap; gap: 18px; justify-content: center; max-width: 760px; width: 100%; }
+  .card {
+    flex: 1 1 300px; max-width: 360px; background: #17142a; border: 1px solid rgba(255,255,255,.08);
+    border-radius: 16px; padding: 26px 22px; text-align: center; text-decoration: none; color: inherit;
+    transition: transform .15s ease, border-color .15s ease;
+  }
+  .card:hover { transform: translateY(-3px); border-color: rgba(255,212,121,.5); }
+  .card .em { font-size: 52px; }
+  .card h2 { font-size: 20px; margin: 12px 0 8px; letter-spacing: 2px; }
+  .card p { color: #a49bc4; font-size: 13.5px; line-height: 1.7; min-height: 46px; }
+  .card .play {
+    display: inline-block; margin-top: 14px; padding: 9px 28px; border-radius: 999px;
+    background: #ffd479; color: #221a08; font-weight: 700; font-size: 14px; letter-spacing: 2px;
+  }
+  .support {
+    margin-top: 40px; max-width: 760px; width: 100%; background: #17142a;
+    border: 1px solid rgba(255,255,255,.08); border-radius: 16px; padding: 24px 22px; text-align: center;
+  }
+  .support h2 { font-size: 18px; letter-spacing: 3px; color: #ffd479; margin-bottom: 8px; }
+  .support p { color: #a49bc4; font-size: 13.5px; line-height: 1.7; }
+  .support-row { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; align-items: center; margin-top: 16px; }
+  .qr-wrap img { width: 160px; height: 160px; border-radius: 10px; background: #fff; }
+  .qr-wrap div { color: #8b84a6; font-size: 12px; margin-top: 6px; }
+  .support-links { display: flex; flex-direction: column; gap: 10px; }
+  .sbtn {
+    display: inline-block; padding: 10px 26px; border-radius: 999px; text-decoration: none;
+    border: 1px solid rgba(255,212,121,.6); color: #ffd479; font-size: 14px; letter-spacing: 1px;
+  }
+  .sbtn:hover { background: rgba(255,212,121,.12); }
+  footer { margin-top: 34px; color: #5d567a; font-size: 12px; text-align: center; line-height: 1.8; }
+</style>
+</head>
+<body>
+  <div class="ad-slot" data-ad-slot="bannerTop"></div>
+
+  <h1>小 游 戏 合 集</h1>
+  <p class="sub">点开即玩 · 无需下载 · 进度自动保存在本机浏览器</p>
+
+  <div class="games">
+    <a class="card" href="xiuxian/">
+      <div class="em">☯️</div>
+      <h2>一键成仙 · 欧皇之路</h2>
+      <p>一根手指的放置抽卡：狂点抽卡、三合一升阶、收集秘宝与图鉴，渡劫飞升全靠运气。</p>
+      <span class="play">开始修仙</span>
+    </a>
+    <a class="card" href="suika/">
+      <div class="em">🍉</div>
+      <h2>合成大西瓜</h2>
+      <p>丢下水果、两两合成，一路合到大西瓜。物理碰撞 + 连锁合并，看看你能拿多少分。</p>
+      <span class="play">开始合成</span>
+    </a>
+  </div>
+
+  <div class="ad-slot" data-ad-slot="bannerBottom"></div>
+
+  <section class="support" data-support="section">
+    <h2>支 持 作 者</h2>
+    <p>如果这两个小游戏给你带来了快乐，欢迎请作者喝杯茶。赞赏通道即将开通，敬请期待。</p>
+    <div class="support-row">
+      <div class="qr-wrap" data-support-wrap="qrcode">
+        <img data-support="qrcode" alt="赞赏码">
+        <div>微信 / 支付宝赞赏码</div>
+      </div>
+      <div class="support-links">
+        <a class="sbtn" data-support="link-kofi" href="#" target="_blank" rel="noopener">☕ Ko-fi 支持</a>
+        <a class="sbtn" data-support="link-afdian" href="#" target="_blank" rel="noopener">⚡ 爱发电支持</a>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    一键成仙 / 合成大西瓜 · HTML5 网页版<br>
+    存档保存在本机浏览器 localStorage，清除浏览器数据会丢失进度。
+  </footer>
+
+  <script src="config.js"></script>
+  <script src="ads.js"></script>
+</body>
+</html>

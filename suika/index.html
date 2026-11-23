@@ -1,0 +1,4248 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0d0a16">
+<title>🍉 合成大西瓜</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    height: 100%; width: 100%;
+    overflow: hidden;
+    background: #0d0a16;
+    -webkit-user-select: none; user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: none;
+    overscroll-behavior: none;
+    position: fixed; inset: 0;
+  }
+  #container {
+    position: fixed; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0) env(safe-area-inset-bottom, 0) env(safe-area-inset-left, 0);
+  }
+  canvas {
+    display: block; touch-action: none;
+    /* sized dynamically by JS */
+    /* 视野已按比例封顶，高屏会留出上下余量 —— 用圆角+外发光把余量做成「机台边框」观感 */
+    border-radius: 18px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.06);
+  }
+  /* ===== HUD ===== */
+  #hud {
+    position: fixed; top: 0; left: 0; right: 0;
+    padding: calc(env(safe-area-inset-top, 8px) + 6px) 16px 0 16px;
+    display: flex; align-items: center; justify-content: center; gap: 18px;
+    pointer-events: none; z-index: 10;
+    font-family: "Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  }
+  #hud .item {
+    font-size: 13px; color: #9a92b8;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.6);
+  }
+  #hud .item b {
+    color: #ffe08a; font-weight: 800; font-size: 16px;
+    font-variant-numeric: tabular-nums;
+  }
+  #hud .next-wrap {
+    display: flex; align-items: center; gap: 6px;
+    padding: 3px 10px; border-radius: 20px;
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);
+    font-size: 12px; color: #9a92b8;
+  }
+  #hud .next-wrap .emoji { font-size: 20px; line-height: 1; }
+  /* ===== 阶段K · HUD 脉冲 ===== */
+  #score.pulse, #coinCount.pulse {
+    animation: hudPulseK .32s ease-out;
+    text-shadow: 0 0 12px rgba(255,215,80,0.75);
+  }
+  @keyframes hudPulseK {
+    0%   { transform: scale(1); }
+    40%  { transform: scale(1.35); }
+    100% { transform: scale(1); }
+  }
+  #score, #coinCount { display: inline-block; transform-origin: center; }
+  /* Sound toggle */
+  #soundBtn {
+    position: fixed; top: calc(env(safe-area-inset-top, 8px) + 6px); right: 16px;
+    width: 36px; height: 36px; border-radius: 50%;
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1);
+    color: #e8e2f4; font-size: 18px; line-height: 36px; text-align: center;
+    cursor: pointer; z-index: 20; pointer-events: auto;
+    transition: background 0.2s;
+  }
+  #soundBtn:active { background: rgba(255,255,255,0.16); }
+  /* ===== Splash ===== */
+  #splash {
+    position: fixed; inset: 0; z-index: 100;
+    background: radial-gradient(130% 100% at 50% -10%, #2a2140 0%, #191426 45%, #0d0a16 100%);
+    display: grid; place-items: center;
+    font-family: "Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    transition: opacity 0.35s ease;
+  }
+  #splash.gone { opacity: 0; pointer-events: none; }
+  #splash .splash-inner {
+    text-align: center;
+    padding: 0 24px;
+    width: 100%;
+    max-width: 420px;
+    box-sizing: border-box;
+  }
+  #splash .logo {
+    font-size: min(22vw, 92px);
+    line-height: 1;
+    margin-bottom: 10px;
+    filter: drop-shadow(0 6px 18px rgba(0,0,0,0.5));
+  }
+  #splash h1 {
+    /* 纯文字，不含 emoji —— 避免各平台 emoji 字宽差异把标题挤出屏幕 */
+    font-size: min(9.5vw, 40px);
+    letter-spacing: 2px; font-weight: 900;
+    line-height: 1.2;
+    white-space: nowrap;
+    background: linear-gradient(90deg,#ff9f6b,#ffd86b,#7bffa8);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 2px 8px rgba(0,0,0,0.4));
+    margin-bottom: 12px;
+  }
+  #splash .sub { font-size: 14px; color: #9a92b8; margin: 0 0 30px 0; }
+  #splash .tap {
+    font-size: 16px; color: #ffe08a;
+    animation: breathe 1.8s ease-in-out infinite;
+    margin: 0;
+  }
+  @keyframes breathe { 0%,100%{opacity:0.6;transform:scale(1)} 50%{opacity:1;transform:scale(1.05)} }
+  #splash .best-line { font-size: 13px; color: #6a6386; margin: 12px 0 0 0; }
+  /* ===== Game-over overlay ===== */
+  #overlay {
+    position: fixed; inset: 0; z-index: 50;
+    background: rgba(13, 10, 22, 0.80);
+    backdrop-filter: blur(4px);
+    display: flex; align-items: center; justify-content: center;
+    opacity: 1; transition: opacity 0.25s ease;
+    padding: env(safe-area-inset-top,0) env(safe-area-inset-right,0) env(safe-area-inset-bottom,0) env(safe-area-inset-left,0);
+    font-family: "Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  }
+  #overlay.hidden { display: none; }
+  .panel {
+    background: linear-gradient(160deg,#241d38,#181225);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 16px; padding: 26px 36px; text-align: center;
+    box-shadow: 0 16px 40px rgba(0,0,0,0.6);
+    animation: pop 0.35s cubic-bezier(0.34,1.56,0.64,1);
+    max-width: 320px; width: 85vw;
+  }
+  @keyframes pop { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .panel h2 { font-size: 22px; margin-bottom: 12px; color: #ff8fa8; letter-spacing: 2px; }
+  .panel p { font-size: 14px; margin: 6px 0; color: #9a92b8; }
+  .panel p b { color: #ffe08a; font-size: 17px; font-variant-numeric: tabular-nums; }
+  .panel .newrec { color: #7bffa8; font-weight: 800; font-size: 14px; margin-top: 8px; letter-spacing: 1px; }
+  .panel button {
+    margin-top: 16px; padding: 12px 36px; font-size: 15px; font-weight: 800;
+    border: none; border-radius: 999px; letter-spacing: 2px;
+    background: linear-gradient(135deg,#ff9f6b,#ffcf5b);
+    color: #2a1608; cursor: pointer;
+    box-shadow: 0 6px 18px rgba(255,160,90,0.35);
+    transition: transform 0.1s ease;
+  }
+  .panel button:active { transform: scale(0.95); }
+  /* 结算页：可变内容进滚动区，底部的「皮肤/商店」固定常显（不再被裁掉） */
+  .panel {
+    max-height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 32px);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+    margin-bottom: 40px;   /* 居中容器里加下边距 → 整体略微上移 */
+  }
+  .panel-body { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .panel-foot.menuRow {
+    margin-top: 12px; padding-top: 12px;
+    border-top: 1px dashed rgba(255,255,255,0.12);
+  }
+  /* 结算页菜单行里的「皮肤/商店」：还原紧凑药丸样式，并强制横向一行排列 */
+  .panel .menuRow { flex-wrap: nowrap; }
+  .panel .menuBtn {
+    margin-top: 0; padding: 8px 14px;
+    display: inline-flex; align-items: center; gap: 5px;
+    border-radius: 999px; letter-spacing: 0.5px;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.13);
+    color: #cfc8e4; font-size: 13px; font-weight: 700;
+    cursor: pointer; box-shadow: none;
+  }
+  .panel .hint-key { color: #6d6580; font-size: 11px; margin-top: 10px; letter-spacing: 1px; }
+  .panel .hint-key b { color: #9a92b8; font-size: 11px; background: rgba(255,255,255,0.06); padding: 1px 5px; border-radius: 4px; }
+  /* ===== 阶段I · 留存系统（签到 / 任务 / 皮肤）===== */
+  /* 入口药丸：开始页与结算页各一排，右上角红点表示"有东西可领" */
+  .menuRow { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+  .menuBtn {
+    position: relative;
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 8px 14px; border-radius: 999px;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.13);
+    color: #cfc8e4; font-size: 13px; font-weight: 700; letter-spacing: 0.5px;
+    cursor: pointer; -webkit-appearance: none; appearance: none;
+    font-family: inherit;
+    transition: transform 0.08s ease, background 0.15s ease;
+  }
+  .menuBtn:active { transform: scale(0.94); }
+  .menuBtn.dot::after {
+    content: ''; position: absolute; right: -2px; top: -2px;
+    width: 9px; height: 9px; border-radius: 50%;
+    background: #ff4d6d; box-shadow: 0 0 0 2px rgba(13,10,22,0.9), 0 0 8px rgba(255,77,109,0.9);
+    animation: dotPulse 1.4s ease-in-out infinite;
+  }
+  @keyframes dotPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.35); } }
+  /* 底部抽屉 */
+  #sheet {
+    position: fixed; inset: 0; z-index: 110; display: none;
+    background: rgba(9,7,16,0.78); backdrop-filter: blur(5px);
+    align-items: flex-end; justify-content: center;
+    font-family: "Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  }
+  #sheet.on { display: flex; }
+  #sheet .sheetCard {
+    width: 100%; max-width: 430px;
+    background: linear-gradient(180deg,#241d38,#15101f);
+    border: 1px solid rgba(255,255,255,0.10);
+    border-bottom: none;
+    border-radius: 20px 20px 0 0;
+    box-shadow: 0 -14px 44px rgba(0,0,0,0.6);
+    padding: 14px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+    box-sizing: border-box;
+    max-height: 84vh; overflow-y: auto;
+    animation: sheetUp 0.28s cubic-bezier(0.22,1.1,0.36,1);
+  }
+  @keyframes sheetUp { from { transform: translateY(24px); opacity: 0.4; } to { transform: none; opacity: 1; } }
+  #sheet .sheetHead {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  #sheet .sheetHead span { font-size: 16px; font-weight: 900; color: #efe9ff; letter-spacing: 1px; }
+  #sheet .sheetHead button {
+    width: 30px; height: 30px; border-radius: 50%;
+    background: rgba(255,255,255,0.07); border: none;
+    color: #9a92b8; font-size: 15px; cursor: pointer; line-height: 1;
+    -webkit-appearance: none; appearance: none;
+  }
+  #sheet .sBtn {
+    display: block; width: 100%; box-sizing: border-box;
+    margin: 12px 0 0; padding: 12px;
+    border: none; border-radius: 12px;
+    font-size: 14px; font-weight: 800; letter-spacing: 0.5px; cursor: pointer;
+    font-family: inherit;
+  }
+  #sheet .sBtn:active { transform: scale(0.98); }
+  #sheet .sBtn.main { background: linear-gradient(135deg,#ffcf5b,#ff9f6b); color: #2a1608; }
+  #sheet .sBtn.ad { background: linear-gradient(135deg,#4ade80,#22c55e); color: #06240f; }
+  #sheet .ciFoot { font-size: 11.5px; color: #7d759b; text-align: center; margin: 10px 0 0; }
+  #sheet .ciFoot.ok { color: #7bffa8; font-weight: 700; }
+  #sheet .ciFoot b { color: #ffe08a; }
+  /* 签到 7 宫格：4+3 布局，第 7 天横跨整行做「大奖」 */
+  .ciGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .ciCell {
+    position: relative; text-align: center;
+    padding: 9px 4px 8px; border-radius: 12px;
+    background: rgba(255,255,255,0.045);
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .ciCell .d { font-size: 10.5px; color: #7d759b; }
+  .ciCell .ico { font-size: 24px; line-height: 1.25; }
+  .ciCell .lbl { font-size: 10.5px; color: #b9b1d4; }
+  .ciCell.big { grid-column: span 3; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 10px; }
+  .ciCell.big .ico { font-size: 28px; }
+  .ciCell.big .lbl { font-size: 13px; color: #ffe08a; font-weight: 800; }
+  .ciCell.cur {
+    background: rgba(255,207,91,0.14);
+    border-color: rgba(255,207,91,0.55);
+    box-shadow: 0 0 14px rgba(255,207,91,0.22);
+  }
+  .ciCell.got { opacity: 0.45; }
+  .ciCell .tick {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    font-size: 26px; color: #7bffa8; text-shadow: 0 2px 8px rgba(0,0,0,0.7);
+  }
+  /* 任务列表 */
+  .qList { display: flex; flex-direction: column; gap: 8px; }
+  .qRow {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px; border-radius: 12px;
+    background: rgba(255,255,255,0.045);
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .qRow.claimed { opacity: 0.5; }
+  .qIco { font-size: 22px; width: 26px; text-align: center; }
+  .qMid { flex: 1; min-width: 0; }
+  .qLbl { font-size: 12.5px; color: #dcd5f0; font-weight: 700; }
+  .qBar { height: 5px; border-radius: 99px; background: rgba(255,255,255,0.10); margin: 5px 0 3px; overflow: hidden; }
+  .qBar i { display: block; height: 100%; background: linear-gradient(90deg,#ffcf5b,#ff9f6b); }
+  .qNum { font-size: 10.5px; color: #7d759b; font-variant-numeric: tabular-nums; }
+  .qBtn {
+    flex: none; padding: 8px 11px; border-radius: 10px; border: none;
+    background: linear-gradient(135deg,#ffcf5b,#ff9f6b); color: #2a1608;
+    font-size: 12.5px; font-weight: 900; cursor: pointer; font-family: inherit;
+    white-space: nowrap;
+  }
+  .qBtn.off { background: rgba(255,255,255,0.08); color: #6a6386; cursor: default; }
+  .qGot { flex: none; font-size: 12px; color: #7bffa8; font-weight: 800; }
+  .qBonus {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    margin-top: 10px; padding: 10px 12px; border-radius: 12px;
+    background: rgba(255,255,255,0.04);
+    border: 1px dashed rgba(255,255,255,0.14);
+    font-size: 13px; color: #b9b1d4; font-weight: 700;
+  }
+  .qBonus.ready { border-color: rgba(255,207,91,0.6); background: rgba(255,207,91,0.10); }
+  .qBonus.claimed { opacity: 0.5; }
+  .qBonus b { color: #7bffa8; font-size: 12px; }
+  /* 皮肤网格 */
+  .skGrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px; }
+  .skCard {
+    text-align: center; padding: 11px 8px 10px; border-radius: 14px;
+    background: rgba(255,255,255,0.045);
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .skCard.cur { border-color: rgba(123,255,168,0.55); background: rgba(123,255,168,0.09); }
+  .skCard.lock .skPrev { filter: grayscale(0.75) brightness(0.8); }
+  .skPrev { font-size: 25px; line-height: 1.1; letter-spacing: 1px; }
+  .skName { font-size: 12.5px; color: #dcd5f0; font-weight: 800; margin: 5px 0 8px; }
+  .skBtn {
+    width: 100%; padding: 8px; border-radius: 10px; border: none;
+    font-size: 12.5px; font-weight: 900; cursor: pointer; font-family: inherit;
+  }
+  .skBtn.use { background: rgba(255,255,255,0.10); color: #cfc8e4; }
+  .skBtn.buy { background: linear-gradient(135deg,#ffcf5b,#ff9f6b); color: #2a1608; }
+  .skBtn.off { background: rgba(255,255,255,0.06); color: #6a6386; cursor: default; }
+  .skOn { padding: 8px; font-size: 12.5px; font-weight: 900; color: #7bffa8; }
+  .skLock { padding: 8px; font-size: 11.5px; color: #7d759b; font-weight: 700; }
+  /* ===== 阶段O · 商店页 & 抽屉金币栏 ===== */
+  .shRow {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px; border-radius: 12px; margin-bottom: 8px;
+    background: rgba(255,255,255,0.045);
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .shIco { font-size: 24px; width: 34px; text-align: center; }
+  .shMid { flex: 1; min-width: 0; }
+  .shName { font-size: 14px; color: #efe9ff; font-weight: 800; }
+  .shDesc { font-size: 11.5px; color: #7d759b; margin-top: 2px; }
+  .shOwn { flex: none; font-size: 11px; color: #7bffa8; font-weight: 800; margin-right: 2px; }
+  .shBuy {
+    flex: none; padding: 9px 14px; border: none; border-radius: 10px;
+    background: linear-gradient(135deg,#ffcf5b,#ff9f6b); color: #2a1608;
+    font-size: 13px; font-weight: 900; cursor: pointer; font-family: inherit; white-space: nowrap;
+  }
+  .shBuy:disabled { opacity: 0.45; cursor: default; background: rgba(255,255,255,0.10); color: #6a6386; }
+  .shFoot { font-size: 11.5px; color: #7d759b; text-align: center; margin: 10px 0 0; }
+  .sheetCoin {
+    margin-top: 12px; padding-top: 10px;
+    border-top: 1px dashed rgba(255,255,255,0.12);
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    font-size: 13.5px; color: #ffe08a; font-weight: 800;
+  }
+  .sheetCoin b { font-variant-numeric: tabular-nums; font-size: 16px; }
+  /* ===== 阶段H · 广告变现 ===== */
+  .panel .btnCol { display: flex; flex-direction: column; gap: 9px; margin-top: 16px; }
+  .panel .btnCol button { margin-top: 0; padding: 12px 20px; width: 100%; box-sizing: border-box; }
+  .panel button.ad {
+    background: linear-gradient(135deg,#4ade80,#22c55e);
+    color: #06240f;
+    box-shadow: 0 6px 18px rgba(34,197,94,0.35);
+    animation: adPulse 1.9s ease-in-out infinite;
+  }
+  /* 次级广告位（金币×2）：白拿但价值低于复活，降一档权重避免抢注意力 */
+  .panel button.ad.sec {
+    background: rgba(34,197,94,0.12);
+    color: #7bffa8;
+    border: 1px solid rgba(74,222,128,0.45);
+    box-shadow: none;
+    animation: none;
+  }
+  @keyframes adPulse {
+    0%,100% { box-shadow: 0 6px 18px rgba(34,197,94,0.30); }
+    50%     { box-shadow: 0 6px 26px rgba(34,197,94,0.60); }
+  }
+  .panel button.ghost {
+    background: rgba(255,255,255,0.07);
+    color: #cfc8e4;
+    border: 1px solid rgba(255,255,255,0.12);
+    box-shadow: none;
+    font-weight: 700;
+  }
+  .panel button:disabled { opacity: 0.4; cursor: default; box-shadow: none; }
+  /* 无真实广告 SDK 时的模拟播放遮罩（本地/H5 预览用） */
+  #adVeil {
+    position: fixed; inset: 0; z-index: 90; display: none;
+    background: #07060d;
+    align-items: center; justify-content: center; flex-direction: column; gap: 18px;
+    font-family: "Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    color: #cfc8e4;
+  }
+  #adVeil.on { display: flex; }
+  #adVeil .tag { font-size: 11px; letter-spacing: 3px; color: #6d6580; }
+  #adVeil .big { font-size: 46px; }
+  #adVeil .lbl { font-size: 14px; color: #9a92b8; }
+  #adVeil .track { width: 190px; height: 5px; border-radius: 99px; background: rgba(255,255,255,0.1); overflow: hidden; }
+  #adVeil .track i { display: block; height: 100%; width: 0%; background: linear-gradient(90deg,#4ade80,#22c55e); }
+  /* 道具耗尽时的获取弹窗 */
+  #shopPop {
+    position: fixed; inset: 0; z-index: 60; display: none;
+    background: rgba(13,10,22,0.82); backdrop-filter: blur(4px);
+    align-items: center; justify-content: center;
+    font-family: "Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    padding: 20px;
+  }
+  #shopPop.on { display: flex; }
+  #shopPop .card {
+    background: linear-gradient(160deg,#241d38,#181225);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 16px; padding: 22px 20px 18px; text-align: center;
+    box-shadow: 0 16px 40px rgba(0,0,0,0.6);
+    width: 260px; max-width: 86vw;
+    animation: pop 0.28s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  #shopPop .ico { font-size: 38px; line-height: 1; }
+  #shopPop h3 { font-size: 16px; color: #efe9ff; margin: 8px 0 2px; letter-spacing: 1px; }
+  #shopPop .desc { font-size: 12px; color: #8d85ad; margin-bottom: 14px; }
+  #shopPop button {
+    display: block; width: 100%; box-sizing: border-box;
+    margin: 8px 0 0; padding: 11px 12px;
+    border: none; border-radius: 12px;
+    font-size: 14px; font-weight: 800; letter-spacing: 1px; cursor: pointer;
+    transition: transform 0.1s ease;
+  }
+  #shopPop button:active { transform: scale(0.96); }
+  #shopPop .buy { background: linear-gradient(135deg,#ffcf5b,#ff9f6b); color: #2a1608; }
+  #shopPop .buy:disabled { opacity: 0.4; cursor: default; }
+  #shopPop .ad  { background: linear-gradient(135deg,#4ade80,#22c55e); color: #06240f; }
+  #shopPop .cls { background: rgba(255,255,255,0.06); color: #9a92b8; font-weight: 700; }
+  /* ===== 阶段G · 道具栏 ===== */
+  #itemBar {
+    position: fixed; left: 0; right: 0;
+    bottom: env(safe-area-inset-bottom, 0px);
+    height: 56px;
+    padding: 0 12px;
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    background: linear-gradient(180deg, rgba(20,15,36,0.0) 0%, rgba(20,15,36,0.65) 45%, rgba(20,15,36,0.9) 100%);
+    z-index: 25; pointer-events: none;
+    font-family: "Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  }
+  #itemBar .coins {
+    display: flex; align-items: center; gap: 4px;
+    font-size: 14px; color: #ffe08a; font-weight: 700;
+    padding: 6px 12px; border-radius: 999px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,224,138,0.25);
+    pointer-events: auto;
+    font-variant-numeric: tabular-nums;
+  }
+  #itemBar .coins b { font-size: 15px; }
+  #itemBar .itembtn {
+    position: relative;
+    width: 46px; height: 46px; border-radius: 14px;
+    background: linear-gradient(160deg, rgba(255,255,255,0.10), rgba(255,255,255,0.03));
+    border: 1px solid rgba(255,255,255,0.12);
+    color: #fff; font-size: 22px; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; pointer-events: auto;
+    transition: transform 0.08s ease, background 0.15s ease, box-shadow 0.15s ease;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.35);
+    -webkit-appearance: none; appearance: none;
+    padding: 0;
+  }
+  #itemBar .itembtn:active { transform: scale(0.92); }
+  #itemBar .itembtn.armed {
+    background: linear-gradient(160deg, #ff9f6b, #ff6a4a);
+    border-color: rgba(255,180,140,0.9);
+    box-shadow: 0 4px 14px rgba(255,140,90,0.55), inset 0 0 0 1px rgba(255,255,255,0.15);
+    animation: armedPulse 1.1s ease-in-out infinite;
+  }
+  @keyframes armedPulse { 0%,100% { filter: brightness(1); } 50% { filter: brightness(1.18); } }
+  #itemBar .itembtn.disabled { opacity: 0.35; filter: grayscale(0.4); }
+  #itemBar .itembtn .ct {
+    position: absolute; right: -4px; top: -4px;
+    min-width: 18px; height: 18px; padding: 0 4px;
+    border-radius: 999px;
+    background: #ffcf5b; color: #2a1608;
+    font-size: 11px; font-weight: 900; line-height: 18px;
+    text-align: center;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.45);
+    font-variant-numeric: tabular-nums;
+  }
+  #itemBar .itembtn .ct.zero { background: #444; color: #aaa; }
+  /* Bomb aiming reticle */
+  #bombHint {
+    position: fixed; left: 50%; transform: translateX(-50%);
+    top: calc(env(safe-area-inset-top, 8px) + 52px);
+    z-index: 24; pointer-events: none;
+    background: rgba(255,106,74,0.85); color: #fff;
+    padding: 4px 12px; border-radius: 999px;
+    font-size: 12px; font-weight: 700; letter-spacing: 1px;
+    display: none;
+    box-shadow: 0 4px 12px rgba(255,90,60,0.5);
+    animation: armedPulse 1.1s ease-in-out infinite;
+  }
+  /* ===== 阶段J · 新手引导 + 分享 ===== */
+  #tutHint {
+    position: fixed; left: 50%; transform: translateX(-50%) translateY(8px);
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 92px);
+    z-index: 45; pointer-events: none;              /* 绝不挡手：教学期玩家照样能玩 */
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    padding: 10px 18px; border-radius: 14px;
+    background: rgba(8,20,16,0.82);
+    border: 1px solid rgba(120,255,190,0.28);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+    color: #eafff4; font-family: system-ui,-apple-system,sans-serif;
+    text-align: center; white-space: nowrap;
+    opacity: 0; transition: opacity .28s ease, transform .28s ease;
+  }
+  #tutHint.on { opacity: 1; transform: translateX(-50%) translateY(0); animation: tutBob 2.4s ease-in-out infinite; }
+  #tutHint b { font-size: 14px; font-weight: 700; letter-spacing: .3px; }
+  #tutHint span { font-size: 11.5px; color: rgba(234,255,244,0.6); }
+  @keyframes tutBob { 0%,100% { transform: translateX(-50%) translateY(0); } 50% { transform: translateX(-50%) translateY(-4px); } }
+
+  #sharePop {
+    position: fixed; inset: 0; z-index: 120;
+    display: none; align-items: center; justify-content: center;
+    padding: 18px; background: rgba(4,10,8,0.78); backdrop-filter: blur(4px);
+    font-family: system-ui,-apple-system,sans-serif;
+  }
+  #sharePop.on { display: flex; }
+  #sharePop .card {
+    width: 100%; max-width: 320px; max-height: 100%;
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    padding: 16px; border-radius: 20px;
+    background: linear-gradient(160deg, rgba(24,44,36,0.98), rgba(16,26,40,0.98));
+    border: 1px solid rgba(255,255,255,0.12);
+    box-shadow: 0 22px 60px rgba(0,0,0,0.55);
+    overflow: auto;
+  }
+  #sharePop h3 { margin: 0; font-size: 16px; color: #fff; font-weight: 700; }
+  #shareImg {
+    width: 100%; max-height: 46vh; object-fit: contain;
+    border-radius: 14px; border: 1px solid rgba(255,255,255,0.14);
+    background: rgba(0,0,0,0.25);
+  }
+  #shareReward { margin: 0; font-size: 12.5px; color: #ffd76a; font-weight: 600; }
+  #sharePop button {
+    width: 100%; padding: 12px 10px; border: 0; border-radius: 13px;
+    font-size: 14.5px; font-weight: 700; color: #fff; cursor: pointer;
+    font-family: inherit;
+  }
+  #sharePop button.go {
+    background: linear-gradient(135deg,#8b7bff,#5b8dff);
+    box-shadow: 0 6px 18px rgba(91,141,255,0.34);
+  }
+  #sharePop .row { display: flex; gap: 8px; width: 100%; }
+  #sharePop button.sec {
+    background: rgba(255,255,255,0.10); color: #dfe9ff;
+    border: 1px solid rgba(255,255,255,0.16); font-weight: 600; font-size: 13px;
+  }
+  #sharePop button.cls { background: none; color: rgba(255,255,255,0.45); font-weight: 500; font-size: 13px; }
+  .panel button.share {
+    background: linear-gradient(135deg,#8b7bff,#5b8dff);
+    box-shadow: 0 6px 18px rgba(91,141,255,0.30);
+  }
+  /* ===== Ad placeholder (Phase H will populate) ===== */
+  #adSlot {
+    position: fixed; bottom: calc(env(safe-area-inset-bottom, 0px) + 64px);
+    left: 50%; transform: translateX(-50%);
+    z-index: 30; display: none;
+  }
+</style>
+<!-- [Instant Games 适配] 原 Telegram Web App / Adsgram 两个外部脚本已移除：
+     Instant Games 要求所有代码打包进 zip、禁止外链 JS；游戏内对 window.Telegram /
+     window.Adsgram 的引用均有存在性判断，缺失时自动降级（广告走本地模拟），玩法不受影响。 -->
+</head>
+<body>
+  <div class="ad-slot" data-ad-slot="bannerTop"></div>
+  <!-- Splash / Audio Gate -->
+  <div id="splash">
+    <div class="splash-inner">
+      <div class="logo">🍉</div>
+      <h1>合成大西瓜</h1>
+      <p class="sub">合并相同水果 · 解锁西瓜</p>
+      <p class="tap">点击任意处开始</p>
+      <p class="best-line" id="splashBest"></p>
+      <p class="best-line" id="splashCoinsLine" style="margin-top:4px;color:#ffd76a">💰 <b id="splashCoins">0</b></p>
+      <div class="menuRow" style="margin-top:18px">
+        <button class="menuBtn" data-menu="checkin">📅 签到</button>
+        <button class="menuBtn" data-menu="quest">🎯 任务</button>
+        <button class="menuBtn" data-menu="skin">🎨 皮肤</button>
+        <button class="menuBtn" data-menu="shop">🛒 商店</button>
+        <button class="menuBtn" data-menu="share">📤 分享</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- HUD -->
+  <div id="hud" style="display:none">
+    <div class="item"><span data-i18n="hud_score">得分</span> <b id="score">0</b></div>
+    <div class="next-wrap"><span data-i18n="hud_next">下一个</span><span id="next" class="emoji">🍇</span></div>
+    <div class="item"><span data-i18n="hud_best">最高</span> <b id="best">0</b></div>
+  </div>
+  <div id="soundBtn" style="display:none">🔊</div>
+
+  <!-- Canvas Container -->
+  <div id="container">
+    <canvas id="game"></canvas>
+  </div>
+
+  <!-- Game-over -->
+  <div id="overlay" class="hidden">
+    <div class="panel">
+      <div class="panel-body">
+        <h2>💥 游戏结束</h2>
+        <p><span data-i18n="hud_score">总分</span> <b id="finalScore">0</b></p>
+        <p><span data-i18n="final_merges_prefix">合成</span> <b id="finalMerges">0</b> <span data-i18n="final_times">次</span></p>
+        <p><span data-i18n="final_peak">最大果</span> <b id="finalPeak">—</b></p>
+        <p><span data-i18n="final_best">最高纪录</span> <b id="finalBest">0</b></p>
+        <p class="newrec" id="newRec" style="display:none">🎉 新纪录！</p>
+        <p id="runCoinLine"><span data-i18n="run_coins_prefix">本局金币</span> <b id="finalCoins">0</b></p>
+        <div class="btnCol">
+          <button id="btnRevive" class="ad" data-i18n="revive_btn" style="display:none">📺 看广告复活</button>
+          <button id="btnX2" class="ad sec" data-i18n="x2_btn_static" style="display:none">📺 金币 ×2</button>
+          <button id="btnShare" class="share" style="display:none">📤 晒成绩</button>
+          <button id="restart" class="ghost">再来一局</button>
+        </div>
+      </div>
+      <div class="menuRow panel-foot">
+        <button class="menuBtn" data-menu="skin" data-i18n="menu_skins">🎨 皮肤</button>
+        <button class="menuBtn" data-menu="shop" data-i18n="menu_shop">🛒 商店</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 阶段H · 广告变现 -->
+  <div id="adVeil">
+    <div class="tag" data-i18n="ad_tag">AD · 赞助内容</div>
+    <div class="big">📺</div>
+    <div class="lbl" id="adVeilLbl" data-i18n="ad_playing">广告播放中…</div>
+    <div class="track"><i id="adVeilBar"></i></div>
+  </div>
+  <div id="shopPop">
+    <div class="card">
+      <div class="ico" id="shopIco">💣</div>
+      <h3 id="shopName" data-i18n="item_name_bomb">炸弹</h3>
+      <div class="desc" id="shopDesc" data-i18n="item_desc_bomb">点选一个果子把它炸掉，救场用</div>
+      <button class="buy" id="shopBuy" data-i18n="shop_buy_default">💰 60 金币购买</button>
+      <button class="ad"  id="shopAd" data-i18n="shop_ad_btn">📺 看广告免费得 1 个</button>
+      <button class="cls" id="shopClose" data-i18n="shop_close">暂不需要</button>
+    </div>
+  </div>
+
+  <!-- 阶段I · 留存抽屉（签到 / 任务 / 皮肤共用） -->
+  <div id="sheet">
+    <div class="sheetCard">
+      <div class="sheetHead"><span id="sheetTitle" data-i18n="sheet_checkin">每日签到</span><button id="sheetClose">✕</button></div>
+      <div id="sheetBody"></div>
+      <div class="sheetCoin">💰 <b id="sheetCoins">0</b></div>
+    </div>
+  </div>
+
+  <!-- 阶段J · 新手引导（不挡手） -->
+  <div id="tutHint"></div>
+
+  <!-- 阶段J · 分享卡片 -->
+  <div id="sharePop">
+    <div class="card">
+      <h3 data-i18n="share_title">📤 晒一局成绩</h3>
+      <img id="shareImg" alt="成绩卡片">
+      <p id="shareReward" data-i18n="share_reward_hint">今日首次分享 +30 金币</p>
+      <button class="go" id="shareGo" data-i18n="share_go">分享给好友</button>
+      <button class="cls" id="shareClose" data-i18n="share_close">关闭</button>
+    </div>
+  </div>
+
+  <!-- Ad slot placeholder -->
+  <div id="adSlot"></div>
+
+  <!-- 阶段G · 道具栏 -->
+  <div id="itemBar" style="display:none">
+    <div class="coins">💰 <b id="coinCount">0</b></div>
+    <button class="itembtn" id="btnUndo" title="撤销"><span>↩️</span><span class="ct" id="ctUndo">0</span></button>
+    <button class="itembtn" id="btnBomb" title="炸弹（点选一个果子）"><span>💣</span><span class="ct" id="ctBomb">0</span></button>
+    <button class="itembtn" id="btnSwap" title="换预备果"><span>🔀</span><span class="ct" id="ctSwap">0</span></button>
+  </div>
+  <div id="bombHint" data-i18n="bomb_hint">💣 点选一个果子将其炸掉</div>
+
+
+<script>
+/* =====================================================================
+   Web 版启动桩 —— 替代 FB 版的 FBStore 适配层。
+   普通浏览器没有 FBInstant：boot 立即执行游戏主脚本，存档走游戏原生的
+   localStorage 逻辑，submitScore 为空实现。接口与 FB 版保持一致，
+   因此下方启动器脚本无需任何改动。
+   ===================================================================== */
+window.FBStore = {
+  inFB: false,
+  boot: function (startFn) { startFn(); },
+  submitScore: function () {}
+};
+</script>
+
+<script type="text/plain" id="game-src">
+'use strict';
+// =====================================================================
+// 发布配置 —— 部署到 Telegram 前只需要填这一块（两处占位）
+// =====================================================================
+const DEPLOY = {
+  // ① 真实 Mini App 深链：BotFather → /newapp 创建后生成，形如 https://t.me/<bot名>/<app短名>
+  //    分享卡片、邀请链接（含 startapp 邀请码）都会用它，Adsgram / TG 审核也看这个链接。
+  botLink: 'https://t.me/suikagua_bot/suika',
+  // ② Adsgram 广告位 blockId：adsgram.ai 后台 → 你的应用 → 新建广告位后复制粘贴；
+  //    留空则广告自动走「本地模拟」（无收入），填好后无需改其它任何地方。
+  adsgramBlockId: '',
+};
+// =====================================================================
+// Lazy translator: safe to call before I18N (const) is initialized
+function T(k, fb) {
+  try { if (typeof I18N !== 'undefined') return I18N.t(k); } catch (e) {}
+  return fb == null ? k : fb;
+}
+// ========== DOM ==========
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const scoreEl = document.getElementById('score');
+const bestEl = document.getElementById('best');
+const nextEl = document.getElementById('next');
+const overlay = document.getElementById('overlay');
+const splash = document.getElementById('splash');
+const hudEl = document.getElementById('hud');
+const soundBtn = document.getElementById('soundBtn');
+const container = document.getElementById('container');
+
+// ========== 逻辑坐标 ==========
+// W 固定 400（水果半径/物理常数以此为基准，保证手感跨设备一致）
+// H 随设备高宽比动态伸展 —— 高屏手机获得更多堆叠空间，画面全屏铺满不留黑边
+const W = 400;
+const H_MIN = 600, H_MAX = 670;
+let H = 600;
+let GROUND = 590;
+const DANGER = 160;          // 警戒线距顶部固定，保证「危险感」出现时机一致
+const GRAV = 1100;
+const REST = 0.45;
+const STEP = 1 / 120;
+// 终端速度：限制单步位移 < 最小半径，杜绝高速穿透/隧道效应（低端机 dt 抖动也安全）
+const MAX_V = 750;
+
+// 通用工具（resize 依赖，需早于其定义）
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+// ========== 响应式画布 ==========
+// 读取真实安全区：用一个探针元素，让浏览器把 env() 解析成像素值
+const probe = document.createElement('div');
+probe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;visibility:hidden;'
+  + 'padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);'
+  + 'padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);';
+document.body.appendChild(probe);
+function safeInsets() {
+  const cs = getComputedStyle(probe);
+  return {
+    top: parseFloat(cs.paddingTop) || 0,
+    bottom: parseFloat(cs.paddingBottom) || 0,
+    left: parseFloat(cs.paddingLeft) || 0,
+    right: parseFloat(cs.paddingRight) || 0,
+  };
+}
+
+let DPR = 1;
+let canvasScale = 1;     // CSS px per logical px
+const HUD_H = 46;        // 顶部 HUD 高度（CSS px）
+const BAR_H = 56;        // 底部道具栏高度（CSS px，阶段G）
+const AD_H = 0;          // 底部广告位预留（阶段H 启用时改为 52）
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2.5);
+  const ins = safeInsets();
+  const availW = Math.max(240, window.innerWidth  - ins.left - ins.right);
+  const availH = Math.max(320, window.innerHeight - ins.top - ins.bottom - HUD_H - BAR_H - AD_H);
+
+  // 1) 逻辑高度跟随屏幕比例（夹在 H_MIN~H_MAX，避免过矮难玩/过高失衡）
+  H = Math.round(clamp(W * (availH / availW), H_MIN, H_MAX));
+  GROUND = H - 10;
+
+  // 2) 等比缩放铺满可用区域（宽优先，高屏几乎 100% 铺满）
+  const aspect = W / H;
+  let cw, ch;
+  if (availW / availH < aspect) { cw = availW; ch = availW / aspect; }
+  else                          { ch = availH; cw = availH * aspect; }
+  canvasScale = cw / W;
+
+  canvas.style.width  = cw + 'px';
+  canvas.style.height = ch + 'px';
+  // 高DPR 帧缓冲：按真实显示像素分配，小屏锐利、大屏不浪费
+  canvas.width  = Math.round(cw * DPR);
+  canvas.height = Math.round(ch * DPR);
+  const s = (cw * DPR) / W;
+  ctx.setTransform(s, 0, 0, s, 0, 0);
+
+  container.style.paddingTop    = (ins.top + HUD_H) + 'px';
+  container.style.paddingBottom = (ins.bottom + BAR_H + AD_H) + 'px';
+
+  // 3) 高度变化后把已在场的水果夹回地面内，避免穿地
+  for (const b of balls) {
+    if (b.y + b.r > GROUND) { b.y = GROUND - b.r; b.sleeping = false; }
+  }
+}
+// 注意：resize() 首次调用被推迟到游戏状态声明之后（见「初始化」段），避免 TDZ
+
+// ========== 水果表（11 级） ==========
+const FRUITS = [
+  { emoji: '🍇', name: '葡萄',   color: '#a78bfa', score: 1  },
+  { emoji: '🍒', name: '樱桃',   color: '#f87171', score: 3  },
+  { emoji: '🍊', name: '橘子',   color: '#fb923c', score: 6  },
+  { emoji: '🍋', name: '柠檬',   color: '#facc15', score: 10 },
+  { emoji: '🥝', name: '猕猴桃', color: '#86efac', score: 15 },
+  { emoji: '🍅', name: '番茄',   color: '#ef4444', score: 21 },
+  { emoji: '🍑', name: '桃子',   color: '#f9a8d4', score: 28 },
+  { emoji: '🍍', name: '菠萝',   color: '#fde047', score: 36 },
+  { emoji: '🥥', name: '椰子',   color: '#d6b58a', score: 45 },
+  { emoji: '🍈', name: '半个西瓜', color: '#4ade80', score: 55 },
+  { emoji: '🍉', name: '大西瓜',  color: '#22c55e', score: 66 },
+];
+const radius = lv => Math.min(88, 14 * Math.pow(1.22, lv - 1));
+const randLevel = () => {
+  const d = clamp(score / 900, 0, 1);
+  const r = Math.random();
+  const p1 = 0.45 - 0.12 * d;
+  const p2 = p1 + (0.30 - 0.05 * d);
+  const p3 = p2 + (0.15 + 0.02 * d);
+  const p4 = p3 + (0.07 + 0.05 * d);
+  if (r < p1) return 1;
+  if (r < p2) return 2;
+  if (r < p3) return 3;
+  if (r < p4) return 4;
+  return 5;
+};
+
+// ========== 颜色工具 ==========
+function hexToRgb(hex) {
+  const h = hex.replace('#', '');
+  return { r: parseInt(h.slice(0,2),16), g: parseInt(h.slice(2,4),16), b: parseInt(h.slice(4,6),16) };
+}
+function mix(hex, target, t) {
+  const c = hexToRgb(hex);
+  const r = Math.round(c.r + (target - c.r) * t);
+  const g = Math.round(c.g + (target - c.g) * t);
+  const b = Math.round(c.b + (target - c.b) * t);
+  return `rgb(${r},${g},${b})`;
+}
+const lighten = (hex, t) => mix(hex, 255, t);
+const darken  = (hex, t) => mix(hex, 0, t);
+function rgba(hex, a) {
+  // 必须同时吃下 '#rrggbb' 和 mix()/lighten()/darken() 产出的 'rgb(r,g,b)'。
+  // 否则 rgba(lighten(c,.3), .5) 会算出 rgba(NaN,NaN,NaN,.5)，canvas 静默拒收该赋值，
+  // 样式回落到上一次的值（默认黑），于是画面上出现莫名的黑边。
+  if (typeof hex === 'string' && hex.indexOf('rgb') === 0) {
+    const n = hex.match(/-?\d+/g) || [0, 0, 0];
+    return `rgba(${n[0]},${n[1]},${n[2]},${a})`;
+  }
+  const c = hexToRgb(hex);
+  return `rgba(${c.r},${c.g},${c.b},${a})`;
+}
+
+// ========== 游戏状态 ==========
+let balls = [], particles = [], popups = [], rings = [];
+let score = 0, merges = 0;
+let best = +(localStorage.getItem('suikaBest') || 0);
+let combo = 0, lastMergeAt = 0;
+let pending = null, nextLevel = 1;
+let dropCd = 0;
+let dangerTimer = 0;
+let seenLevels = [];
+let gameOver = false, shake = 0, banner = null;
+let hitstop = 0, flash = 0;
+let tSec = 0;
+let slowmo = 0, nearMissCd = 0;
+let runBest = best, beatBest = false;
+let nextGolden = false;
+const keys = { left: false, right: false };
+let audioCtx = null;
+let muted = false;
+let started = false; // splash dismissed
+let runStartAt = Date.now();   // 本局开始的墙钟时间（阶段J 埋点算时长用）
+
+// ========== 初始化布局（此时 balls/clamp 均已就绪） ==========
+resize();
+window.addEventListener('resize', resize);
+window.addEventListener('orientationchange', () => { setTimeout(resize, 120); setTimeout(resize, 400); });
+// iOS Safari 地址栏收起/展开会改 innerHeight，用 visualViewport 兜底
+if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
+
+// ========== 音频（Web Audio 合成，零素材） ==========
+let masterGain = null, ambient = null;
+const PENTA = [0, 2, 4, 7, 9];
+const noteFreq = semi => 220 * Math.pow(2, semi / 12);
+function initAudio() {
+  if (audioCtx) return;
+  try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; }
+  masterGain = audioCtx.createGain();
+  masterGain.gain.value = muted ? 0 : 0.85;
+  masterGain.connect(audioCtx.destination);
+  startAmbient();
+}
+function toggleMute() {
+  muted = !muted;
+  soundBtn.textContent = muted ? '🔇' : '🔊';
+  if (masterGain) masterGain.gain.setTargetAtTime(muted ? 0 : 0.85, audioCtx.currentTime, 0.05);
+}
+soundBtn.addEventListener('click', e => { e.stopPropagation(); toggleMute(); });
+soundBtn.addEventListener('pointerdown', e => e.stopPropagation());
+
+function startAmbient() {
+  if (!audioCtx) return;
+  const g = audioCtx.createGain(); g.gain.value = 0.02;
+  const lp = audioCtx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 340;
+  const o1 = audioCtx.createOscillator(); o1.type = 'sine'; o1.frequency.value = 55;
+  const o2 = audioCtx.createOscillator(); o2.type = 'sine'; o2.frequency.value = 82.4;
+  const o3 = audioCtx.createOscillator(); o3.type = 'sawtooth'; o3.frequency.value = 110;
+  const lfo = audioCtx.createOscillator(); lfo.frequency.value = 0.07;
+  const lfoG = audioCtx.createGain(); lfoG.gain.value = 90;
+  lfo.connect(lfoG); lfoG.connect(lp.frequency);
+  o1.connect(lp); o2.connect(lp); o3.connect(lp); lp.connect(g); g.connect(masterGain);
+  o1.start(); o2.start(); o3.start(); lfo.start();
+  ambient = { g, lp };
+}
+function setAmbient(intensity) {
+  if (!ambient || !audioCtx) return;
+  const t = audioCtx.currentTime;
+  ambient.g.gain.setTargetAtTime(0.015 + intensity * 0.075, t, 0.25);
+  ambient.lp.frequency.setTargetAtTime(280 + intensity * 950, t, 0.25);
+}
+function mergeSound(level, cmb) {
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime;
+  const stepN = Math.min(cmb - 1, 14);
+  const semi = PENTA[stepN % 5] + 12 * Math.floor(stepN / 5) + Math.min(level - 1, 6) + 12;
+  const base = noteFreq(semi);
+  [{ type: 'sine', mul: 1, g: 0.24 }, { type: 'triangle', mul: 2.01, g: 0.10 }].forEach(v => {
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = v.type; o.frequency.setValueAtTime(base * v.mul, t);
+    g.gain.setValueAtTime(v.g, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.22 + level * 0.01);
+    o.connect(g); g.connect(masterGain); o.start(t); o.stop(t + 0.3 + level * 0.01);
+  });
+}
+function bigChord() {
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime;
+  [0, 4, 7, 12, 16, 19].forEach((semi, i) => {
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = 'triangle'; o.frequency.value = noteFreq(semi) * 2;
+    const st = t + i * 0.055;
+    g.gain.setValueAtTime(0, st);
+    g.gain.linearRampToValueAtTime(0.2, st + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.001, st + 0.7);
+    o.connect(g); g.connect(masterGain); o.start(st); o.stop(st + 0.75);
+  });
+}
+function dropTick() {
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime;
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.type = 'square'; o.frequency.setValueAtTime(680, t);
+  o.frequency.exponentialRampToValueAtTime(340, t + 0.04);
+  g.gain.setValueAtTime(0.05, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
+  o.connect(g); g.connect(masterGain); o.start(t); o.stop(t + 0.07);
+}
+function landThud(level) {
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime;
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.type = 'sine'; o.frequency.setValueAtTime(120 - level * 4, t);
+  o.frequency.exponentialRampToValueAtTime(60, t + 0.1);
+  g.gain.setValueAtTime(0.04 + level * 0.006, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+  o.connect(g); g.connect(masterGain); o.start(t); o.stop(t + 0.14);
+}
+function nearMissSound() {
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime;
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  const lp = audioCtx.createBiquadFilter(); lp.type = 'bandpass'; lp.frequency.value = 700; lp.Q.value = 4;
+  o.type = 'sawtooth'; o.frequency.setValueAtTime(220, t);
+  o.frequency.exponentialRampToValueAtTime(1000, t + 0.45);
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.13, t + 0.06);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+  o.connect(lp); lp.connect(g); g.connect(masterGain); o.start(t); o.stop(t + 0.52);
+}
+function jackpotSound() {
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime;
+  [0, 4, 7, 12, 16, 19, 24].forEach((semi, i) => {
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = 'square'; o.frequency.value = noteFreq(semi) * 2;
+    const st = t + i * 0.04;
+    g.gain.setValueAtTime(0, st);
+    g.gain.linearRampToValueAtTime(0.14, st + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.001, st + 0.35);
+    o.connect(g); g.connect(masterGain); o.start(st); o.stop(st + 0.38);
+  });
+}
+function gameOverSound() {
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime;
+  [0, 0.16, 0.34].forEach((d, i) => {
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(300 - i * 70, t + d);
+    o.frequency.exponentialRampToValueAtTime(90 - i * 20, t + d + 0.3);
+    g.gain.setValueAtTime(0.16, t + d);
+    g.gain.exponentialRampToValueAtTime(0.001, t + d + 0.32);
+    o.connect(g); g.connect(masterGain); o.start(t + d); o.stop(t + d + 0.34);
+  });
+}
+
+// ========== 生成 / 掉落 ==========
+function makeBall(level, x, y, vx, vy) {
+  return { level, x, y, vx, vy, r: radius(level),
+           released: false, touching: false, sleeping: false, rest: 0,
+           fuse: 0, expired: false, spawnT: 0, wobble: 0, golden: false };
+}
+function newPending() {
+  pending = { level: nextLevel, x: pending ? pending.x : W / 2, golden: nextGolden };
+  nextLevel = randLevel();
+  nextGolden = nextLevel <= 3 && Math.random() < 0.07;
+  nextEl.textContent = (nextGolden ? '✨' : '') + FRUITS[nextLevel - 1].emoji;
+}
+function drop() {
+  if (gameOver || !pending || dropCd > 0) return;
+  if (typeof takeSnapshot === 'function') takeSnapshot();
+  const b = makeBall(pending.level, pending.x, 26, 0, 0);
+  b.released = true;
+  b.golden = pending.golden;
+  balls.push(b);
+  dropTick();
+  dropCd = Math.max(0.20, 0.40 - score * 0.0001);
+  newPending();
+  if (typeof checkScoreReward === 'function') checkScoreReward();
+  if (typeof tutOnDrop === 'function') tutOnDrop();
+}
+
+// ========== 特效 ==========
+function burst(x, y, color, count) {
+  for (let i = 0; i < count; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const s = 60 + Math.random() * 180;
+    particles.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 60,
+                     life: 0.5 + Math.random() * 0.3, maxLife: 0.8, color, size: 2 + Math.random() * 3.5 });
+  }
+}
+function popup(text, x, y, color, size) {
+  popups.push({ text, x, y, life: 0.9, color, size });
+}
+function ring(x, y, color, maxR) {
+  rings.push({ x, y, r: 4, maxR, life: 0.45, color });
+}
+function bigBurst(b) {
+  burst(b.x, b.y, '#22c55e', 30);
+  burst(b.x, b.y, '#a6e3a1', 14);
+  ring(b.x, b.y, '#a6e3a1', 120);
+}
+
+// ========== 合并 ==========
+function removeBall(b) {
+  const i = balls.indexOf(b);
+  if (i >= 0) balls.splice(i, 1);
+}
+function doMerge(a, b) {
+  const level = a.level + 1;
+  const nx = (a.x + b.x) / 2, ny = (a.y + b.y) / 2;
+  const vx = (a.vx + b.vx) / 2, vy = (a.vy + b.vy) / 2;
+  removeBall(a); removeBall(b);
+
+  const now = tSec;
+  combo = (now - lastMergeAt < 1.1) ? combo + 1 : 1;
+  lastMergeAt = now;
+
+  const isJackpot = a.golden || b.golden;
+  const mult = 1 + Math.min(combo - 1, 8) * 0.5;
+  const base = FRUITS[level - 1].score;
+  const gain = Math.round(base * mult * (isJackpot ? 5 : 1));
+  score += gain;
+  merges++;
+
+  const f = FRUITS[level - 1];
+  burst(nx, ny, f.color, level === 11 ? 26 : 8 + level);
+  burst(nx, ny, lighten(f.color, 0.4), 4 + level);
+  ring(nx, ny, f.color, radius(level) * 2.6);
+  popup('+' + gain, nx, ny - 12, lighten(f.color, 0.3), 16 + level * 0.6);
+  if (combo >= 2) popup(I18N.t('combo_popup') + combo, W / 2, 130, '#ffe08a', 20 + Math.min(combo, 6));
+  if (combo >= 3) shake = Math.max(shake, 0.35);
+  if (isJackpot) {
+    burst(nx, ny, '#ffd54a', 30);
+    burst(nx, ny, '#fff3b0', 18);
+    ring(nx, ny, '#ffd54a', radius(level) * 4);
+    popup(I18N.t('golden_five'), W / 2, 165, '#ffd54a', 30);
+    banner = { text: I18N.t('jackpot_banner'), life: 1.2 };
+    shake = Math.max(shake, 0.55);
+    flash = Math.max(flash, 0.35);
+    jackpotSound();
+  }
+
+  hitstop = Math.max(hitstop, 0.02 + level * 0.006);
+  flash = Math.max(flash, level >= 7 ? 0.25 : 0.08 + level * 0.015);
+  if (typeof haptic === 'function') haptic(level >= 7 ? 'heavy' : (level >= 4 ? 'medium' : 'light'));
+
+  const nb = makeBall(level, nx, ny, vx, vy);
+  nb.released = true; nb.touching = true; nb.spawnT = 0.32;
+  balls.push(nb);
+  for (const o of balls) {
+    if (o.sleeping && Math.hypot(o.x - nx, o.y - ny) < nb.r * 3.5 + o.r) o.sleeping = false;
+  }
+
+  if (level === 11) {
+    banner = { text: I18N.t('watermelon_banner'), life: 1.6 };
+    shake = Math.max(shake, 0.6);
+    flash = Math.max(flash, 0.4);
+    bigChord();
+    nb.fuse = 0.55;
+  } else {
+    mergeSound(level, combo);
+  }
+  if (level >= 5 && level <= 10 && !seenLevels[level]) {
+    seenLevels[level] = true;
+    banner = { text: I18N.t('first_unlock_prefix') + FRUITS[level - 1].emoji + ' ' + FRUITS[level - 1].name, life: 1.4 };
+    popup(I18N.t('newly_unlocked'), W / 2, 100, '#a6e3a1', 20);
+    burst(nx, ny, lighten(f.color, 0.5), 20);
+    shake = Math.max(shake, 0.4);
+    flash = Math.max(flash, 0.22);
+    jackpotSound();
+  }
+  if (!beatBest && runBest > 0 && score > runBest) {
+    beatBest = true;
+    banner = { text: I18N.t('banner_new_record'), life: 1.6 };
+    popup(I18N.t('popup_new_record'), W / 2, 200, '#ffd54a', 26);
+    shake = Math.max(shake, 0.5);
+    flash = Math.max(flash, 0.3);
+    jackpotSound();
+  }
+  updateScore();
+  if (typeof questBump === 'function') { questBump('merge', 1); questPeak('level', level); questPeak('combo', combo); }
+  if (typeof tutOnMerge === 'function') tutOnMerge();
+  if (typeof onMergeJuice === 'function') onMergeJuice(nx, ny, level, combo, gain, isJackpot);
+}
+
+// ========== 物理 ==========
+function isSupported(b) {
+  if (b.y + b.r >= GROUND - 1) return true;
+  for (const o of balls) {
+    if (o === b) continue;
+    if (o.y > b.y) continue;
+    if (Math.abs(o.x - b.x) < Math.max(o.r, b.r) * 1.2 &&
+        Math.abs((b.y + b.r) - (o.y - o.r)) < 2) return true;
+  }
+  return false;
+}
+function collidePass() {
+  const n = balls.length;
+  for (let i = 0; i < n; i++) {
+    const a = balls[i];
+    if (!a || a.expired) continue;
+    for (let j = i + 1; j < n; j++) {
+      const b = balls[j];
+      if (!b || b.expired) continue;
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const dist = Math.hypot(dx, dy);
+      const min = a.r + b.r;
+      if (dist >= min || dist < 0.0001) continue;
+      if (a.level === b.level && a.level < 11) { doMerge(a, b); return true; }
+      const nx = dx / dist, ny = dy / dist;
+      const overlap = min - dist;
+      // 两球都睡眠：跳过速度解算保住性能，但重叠明显时做「纯位置」轻推，消除堆叠穿模
+      if (a.sleeping && b.sleeping) {
+        if (overlap > 1.0) {
+          const push = (overlap - 1.0) * 0.5;
+          a.x -= nx * push; a.y -= ny * push;
+          b.x += nx * push; b.y += ny * push;
+        }
+        continue;
+      }
+      if (!a.sleeping && !b.sleeping) { a.x -= nx*overlap/2; a.y -= ny*overlap/2; b.x += nx*overlap/2; b.y += ny*overlap/2; }
+      else {
+        // 动球 vs 睡眠球：始终做「加权双向」分离。
+        // 睡眠球只吃 30% 位移（保住堆叠稳定不抖），但绝不再是「永不被推开」的墙——
+        // 否则动球会长期嵌在缝隙里穿模（场地变矮后堆叠更挤，这点尤其明显）。
+        const wSleep = 0.3, wMove = 0.7;
+        if (overlap > 1.2) {
+          if (a.sleeping) { a.sleeping = false; a.rest = 0; }
+          if (b.sleeping) { b.sleeping = false; b.rest = 0; }
+        }
+        if (a.sleeping) { a.x -= nx*overlap*wSleep; a.y -= ny*overlap*wSleep; b.x += nx*overlap*wMove; b.y += ny*overlap*wMove; }
+        else            { a.x -= nx*overlap*wMove;  a.y -= ny*overlap*wMove;  b.x += nx*overlap*wSleep; b.y += ny*overlap*wSleep; }
+      }
+      a.touching = b.touching = true;
+      const rvx = b.vx - a.vx, rvy = b.vy - a.vy;
+      const vn = rvx * nx + rvy * ny;
+      if (vn < 0) {
+        const imp = (-vn * (1 + REST)) / 2;
+        if (!a.sleeping) { a.vx -= imp * nx; a.vy -= imp * ny; }
+        if (!b.sleeping) { b.vx += imp * nx; b.vy += imp * ny; }
+        if (a.sleeping && imp > 50) a.sleeping = false;
+        if (b.sleeping && imp > 50) b.sleeping = false;
+        if (imp > 120) { a.wobble = b.wobble = Math.min(0.5, imp / 600); }
+      }
+    }
+  }
+  return false;
+}
+function step(dt) {
+  tSec += dt;
+  if (!gameOver && pending) {
+    if (keys.left)  pending.x = clamp(pending.x - 260 * dt, radius(pending.level), W - radius(pending.level));
+    if (keys.right) pending.x = clamp(pending.x + 260 * dt, radius(pending.level), W - radius(pending.level));
+  }
+  for (const b of balls) {
+    if (b.sleeping || b.expired) continue;
+    b.vy += GRAV * dt;
+    // 速度钳制（终端速度）
+    if (b.vy >  MAX_V) b.vy =  MAX_V;
+    if (b.vy < -MAX_V) b.vy = -MAX_V;
+    if (b.vx >  MAX_V) b.vx =  MAX_V;
+    if (b.vx < -MAX_V) b.vx = -MAX_V;
+    b.x += b.vx * dt; b.y += b.vy * dt;
+    b.vx *= (1 - 0.8 * dt);
+  }
+  for (const b of balls) {
+    if (b.sleeping || b.expired) continue;
+    if (b.x - b.r < 0)  { b.x = b.r;  if (b.vx < 0) b.vx = -b.vx * REST; }
+    if (b.x + b.r > W)  { b.x = W - b.r; if (b.vx > 0) b.vx = -b.vx * REST; }
+    if (b.y + b.r > GROUND) {
+      b.y = GROUND - b.r; b.touching = true;
+      if (b.vy > 0) { if (b.vy > 80) b.vy = -b.vy * REST; else b.vy = 0; }
+    }
+  }
+  for (let k = 0; k < 14; k++) { if (!collidePass()) break; }
+  // 边界硬约束：对「所有」球生效（含睡眠球）。
+  // 解算器会把睡眠球挤出边界，若这里跳过睡眠球，它们会永久穿地/穿墙。
+  for (const b of balls) {
+    if (b.expired) continue;
+    if (b.x - b.r < 0)  b.x = b.r;
+    if (b.x + b.r > W)  b.x = W - b.r;
+    if (b.y + b.r > GROUND) { b.y = GROUND - b.r; b.touching = true; if (b.vy > 0) b.vy = 0; }
+  }
+  for (const b of balls) {
+    if (b.expired) continue;
+    if (b.fuse > 0) { b.fuse -= dt; if (b.fuse <= 0) { b.expired = true; bigBurst(b); } }
+    if (b.spawnT > 0) b.spawnT = Math.max(0, b.spawnT - dt);
+    if (b.wobble > 0) b.wobble = Math.max(0, b.wobble - dt * 2.2);
+  }
+  balls = balls.filter(b => !b.expired);
+  if (dropCd > 0) dropCd = Math.max(0, dropCd - dt);
+  if (!gameOver) {
+    let overLine = false;
+    for (const b of balls) {
+      if (b.released && b.touching && b.y - b.r < DANGER) { overLine = true; break; }
+    }
+    if (overLine) {
+      dangerTimer += dt;
+      if (dangerTimer > 0.6) gameOverNow();
+    } else {
+      dangerTimer = 0;
+    }
+  }
+  const top = stackTop();
+  const dangerInt = clamp((DANGER + 150 - top) / 200, 0, 1);
+  setAmbient(dangerInt);
+  if (nearMissCd > 0) nearMissCd -= dt;
+  if (!gameOver && nearMissCd <= 0 && dangerTimer === 0 && top > DANGER && top < DANGER + 24) {
+    slowmo = 0.55; nearMissCd = 4;
+    popup(I18N.t('close_call'), W / 2, DANGER + 40, '#ff9a6b', 22);
+    nearMissSound();
+  }
+  if (slowmo > 0) slowmo = Math.max(0, slowmo - dt);
+  for (const b of balls) {
+    if (b.sleeping || !b.released || b.expired) continue;
+    if (Math.hypot(b.vx, b.vy) < 6 && isSupported(b)) b.rest += dt; else b.rest = 0;
+    if (b.rest > 0.35) {
+      b.sleeping = true; b.vx = 0; b.vy = 0;
+      if (b.level >= 3) landThud(b.level);
+    }
+  }
+  for (const p of particles) { p.life -= dt; p.vy += 500 * dt; p.x += p.vx * dt; p.y += p.vy * dt; }
+  particles = particles.filter(p => p.life > 0);
+  for (const p of popups) { p.life -= dt; p.y -= 45 * dt; }
+  popups = popups.filter(p => p.life > 0);
+  for (const r of rings) { r.life -= dt; r.r += (r.maxR - r.r) * Math.min(1, dt * 9); }
+  rings = rings.filter(r => r.life > 0);
+  if (banner) { banner.life -= dt; if (banner.life <= 0) banner = null; }
+  if (shake > 0) shake = Math.max(0, shake - dt);
+  if (flash > 0) flash = Math.max(0, flash - dt * 2.2);
+  // 金币结算放在每帧：合成瞬间即时弹 +💰（多汁反馈），且不漏结算临终前最后一波分数
+  if (!gameOver && typeof checkScoreReward === 'function') checkScoreReward();
+}
+
+// ========== 渲染 ==========
+function drawFruit(level, x, y, scaleX, scaleY, golden) {
+  const rr = radius(level);
+  const f = FRUITS[level - 1];
+  ctx.save();
+  ctx.translate(x, y);
+  if (scaleX !== 1 || scaleY !== 1) ctx.scale(scaleX, scaleY);
+  if (golden) {
+    const pulse = 0.5 + 0.5 * Math.sin(tSec * 8);
+    ctx.save();
+    ctx.globalAlpha = 0.45 + 0.35 * pulse;
+    ctx.shadowColor = 'rgba(255,213,74,0.95)';
+    ctx.shadowBlur = 22 + pulse * 12;
+    ctx.strokeStyle = '#ffe08a';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.arc(0, 0, rr * (1.12 + pulse * 0.06), 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+  }
+  // 接地软阴影：用径向渐变（而非实心椭圆）——实心椭圆会在水果下缘露出一道硬边黑月牙，
+  // 多个水果叠在一起时还会累加变更黑，非常廉价。
+  ctx.save();
+  ctx.translate(0, rr * 0.94);
+  ctx.scale(1, 0.30);
+  const sh = ctx.createRadialGradient(0, 0, rr * 0.15, 0, 0, rr * 0.98);
+  sh.addColorStop(0, 'rgba(0,0,0,0.30)');
+  sh.addColorStop(0.55, 'rgba(0,0,0,0.16)');
+  sh.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = sh;
+  ctx.beginPath(); ctx.arc(0, 0, rr * 0.98, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+  ctx.save();
+  ctx.shadowColor = golden ? 'rgba(255,213,74,0.9)' : rgba(f.color, 0.75);
+  ctx.shadowBlur = 14 + level * 1.5;
+  const g = ctx.createRadialGradient(-rr * 0.35, -rr * 0.4, rr * 0.12, 0, 0, rr);
+  g.addColorStop(0, lighten(f.color, 0.6));
+  g.addColorStop(0.5, f.color);
+  g.addColorStop(1, darken(f.color, 0.2));
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(0, 0, rr, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+  ctx.strokeStyle = rgba(lighten(f.color, 0.3), 0.5);
+  ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(0, 0, rr - 0.8, Math.PI * 0.15, Math.PI * 0.85); ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.beginPath(); ctx.ellipse(-rr * 0.3, -rr * 0.36, rr * 0.24, rr * 0.15, -0.5, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.28)';
+  ctx.beginPath(); ctx.arc(rr * 0.28, rr * 0.3, rr * 0.09, 0, Math.PI * 2); ctx.fill();
+  ctx.font = Math.round(rr * 1.25) + 'px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.globalAlpha = 1;
+  ctx.fillText(f.emoji, 0, rr * 0.04);
+  ctx.restore();
+}
+
+function stackTop() {
+  let top = GROUND;
+  for (const b of balls) if (b.released && b.touching) top = Math.min(top, b.y - b.r);
+  return top;
+}
+function drawBackground() {
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#251d40');
+  bg.addColorStop(0.55, '#1b1530');
+  bg.addColorStop(1, '#140f24');
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+  const top = stackTop();
+  const danger = clamp((DANGER + 120 - top) / 180, 0, 1);
+  const glow = ctx.createRadialGradient(W/2, GROUND, 10, W/2, GROUND, 320);
+  glow.addColorStop(0, `rgba(${Math.round(90+danger*120)},${Math.round(70-danger*40)},${Math.round(160-danger*90)},0.28)`);
+  glow.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
+  const vig = ctx.createRadialGradient(W/2, H/2, H*0.42, W/2, H/2, H*0.78);
+  vig.addColorStop(0, 'rgba(0,0,0,0)');
+  vig.addColorStop(1, 'rgba(0,0,0,0.26)');
+  ctx.fillStyle = vig; ctx.fillRect(0, 0, W, H);
+}
+function draw() {
+  ctx.save();
+  if (shake > 0) {
+    const s = shake * 7;
+    ctx.translate((Math.random() - 0.5) * s, (Math.random() - 0.5) * s);
+  }
+  drawBackground();
+  // Walls
+  const wall = ctx.createLinearGradient(0, 0, 6, 0);
+  wall.addColorStop(0, 'rgba(255,255,255,0.10)');
+  wall.addColorStop(1, 'rgba(255,255,255,0.0)');
+  ctx.fillStyle = wall; ctx.fillRect(0, 0, 6, H);
+  const wall2 = ctx.createLinearGradient(W-6, 0, W, 0);
+  wall2.addColorStop(0, 'rgba(255,255,255,0.0)');
+  wall2.addColorStop(1, 'rgba(255,255,255,0.10)');
+  ctx.fillStyle = wall2; ctx.fillRect(W-6, 0, 6, H);
+  // Ground
+  const gnd = ctx.createLinearGradient(0, GROUND, 0, H);
+  gnd.addColorStop(0, 'rgba(255,255,255,0.12)');
+  gnd.addColorStop(1, 'rgba(255,255,255,0.02)');
+  ctx.fillStyle = gnd; ctx.fillRect(0, GROUND, W, H - GROUND);
+  // Danger line
+  let near = 0;
+  for (const b of balls) {
+    if (b.released) {
+      const d = (b.y - b.r) - DANGER;
+      if (d < 80) near = Math.max(near, clamp((80 - d) / 80, 0, 1));
+    }
+  }
+  const pulse = 0.4 + 0.3 * Math.sin(tSec * 6) * near;
+  ctx.save();
+  ctx.setLineDash([10, 8]);
+  ctx.strokeStyle = `rgba(${Math.round(243+near*12)},${Math.round(139-near*139)},${Math.round(168-near*130)},${clamp(pulse+0.25,0,0.95)})`;
+  ctx.lineWidth = 1.5 + near * 1.5;
+  ctx.beginPath(); ctx.moveTo(0, DANGER); ctx.lineTo(W, DANGER); ctx.stroke();
+  ctx.restore();
+  ctx.fillStyle = `rgba(243,139,168,${clamp(0.5+near*0.4,0,0.95)})`;
+  ctx.font = '11px sans-serif'; ctx.textAlign = 'left';
+  ctx.fillText(I18N.t('danger_line'), 8, DANGER - 6);
+  // Fruits
+  for (const b of balls) {
+    if (b.fuse > 0 && Math.floor(b.fuse * 14) % 2 === 0) continue;
+    let sx = 1, sy = 1;
+    if (b.spawnT > 0) {
+      const p = b.spawnT / 0.32;
+      const e = 1 - p;
+      const bounce = Math.sin(e * Math.PI) * 0.22 * p;
+      sx = 1 + bounce; sy = 1 - bounce;
+    } else if (b.wobble > 0) {
+      const w = b.wobble * Math.sin(tSec * 40) * 0.3;
+      sx = 1 + w; sy = 1 - w;
+    }
+    drawFruit(b.level, b.x, b.y, sx, sy, b.golden);
+  }
+  // Pending
+  if (pending && !gameOver) {
+    const r = radius(pending.level);
+    ctx.save();
+    ctx.setLineDash([3, 7]); ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(pending.x, 26 + r); ctx.lineTo(pending.x, GROUND - 4); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+    ctx.beginPath(); ctx.arc(pending.x, GROUND - r - 2, r, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+    ctx.globalAlpha = 0.85 + 0.1 * Math.sin(tSec * 5);
+    drawFruit(pending.level, pending.x, 26, 1, 1, pending.golden);
+    ctx.globalAlpha = 1;
+  }
+  // Rings
+  for (const rg of rings) {
+    ctx.globalAlpha = Math.max(0, rg.life / 0.45) * 0.7;
+    ctx.strokeStyle = rg.color; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(rg.x, rg.y, rg.r, 0, Math.PI * 2); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  // Particles
+  for (const p of particles) {
+    ctx.globalAlpha = Math.max(0, p.life / (p.maxLife || 0.8));
+    ctx.fillStyle = p.color;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  // Popups
+  for (const p of popups) {
+    ctx.globalAlpha = Math.max(0, Math.min(1, p.life / 0.5));
+    ctx.fillStyle = p.color;
+    ctx.font = 'bold ' + p.size + 'px "PingFang SC",sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(p.text, p.x, p.y);
+  }
+  ctx.globalAlpha = 1;
+  // Goal gradient HUD
+  if (!gameOver && runBest > 0 && score < runBest) {
+    const remain = runBest - score;
+    const prog = clamp(score / runBest, 0, 1);
+    const bw = 150, bx = W / 2 - bw / 2, by = 48;
+    ctx.globalAlpha = 0.85;
+    ctx.fillStyle = 'rgba(255,224,138,0.9)';
+    ctx.font = '12px "PingFang SC",sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(I18N.t('remain_fmt').replace('{n}', remain), W / 2, by - 8);
+    ctx.fillStyle = 'rgba(255,255,255,0.12)';
+    ctx.fillRect(bx, by, bw, 4);
+    ctx.fillStyle = '#ffd54a';
+    ctx.fillRect(bx, by, bw * prog, 4);
+    ctx.globalAlpha = 1;
+  }
+  // Banner
+  if (banner) {
+    const a = Math.min(1, banner.life);
+    ctx.globalAlpha = a;
+    ctx.fillStyle = '#ffe08a';
+    ctx.font = 'bold 36px "PingFang SC",sans-serif';
+    ctx.textAlign = 'center';
+    ctx.save();
+    ctx.shadowColor = 'rgba(255,180,60,0.7)'; ctx.shadowBlur = 20;
+    ctx.fillText(banner.text, W / 2, 120);
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+  // Flash overlay
+  if (flash > 0) {
+    ctx.fillStyle = `rgba(255,255,255,${flash})`;
+    ctx.fillRect(0, 0, W, H);
+  }
+}
+
+// ========== 流程控制 ==========
+function updateScore() {
+  scoreEl.textContent = score;
+  bestEl.textContent = best;
+}
+function gameOverNow() {
+  gameOver = true;
+  const isNew = score > best;
+  if (isNew) { best = score; localStorage.setItem('suikaBest', best); }
+  document.getElementById('finalScore').textContent = score;
+  document.getElementById('finalMerges').textContent = merges;
+  let peak = 0;
+  for (let i = 1; i <= 11; i++) if (seenLevels[i]) peak = i;
+  for (const b of balls) if (b.level > peak) peak = b.level;
+  document.getElementById('finalPeak').textContent = peak > 0
+    ? FRUITS[peak - 1].emoji + ' ' + FRUITS[peak - 1].name : '—';
+  document.getElementById('finalBest').textContent = best;
+  document.getElementById('newRec').style.display = isNew && score > 0 ? 'block' : 'none';
+  overlay.classList.remove('hidden');
+  gameOverSound();
+  if (typeof questBump === 'function') { questBump('play', 1); questPeak('score', score); }
+  if (typeof updateMenuDots === 'function') updateMenuDots();
+  if (typeof onGameOverAds === 'function') onGameOverAds();
+  if (typeof onGameOverShare === 'function') onGameOverShare();
+  if (typeof track === 'function') {
+    let pk = 0;
+    for (let i = 1; i <= 11; i++) if (seenLevels[i]) pk = i;
+    track('game_over', { score: score, merges: merges, peak: pk, best: best, newRec: isNew && score > 0,
+                         sec: Math.round((Date.now() - runStartAt) / 1000) });
+  }
+}
+function restart() {
+  balls = []; particles = []; popups = []; rings = [];
+  score = 0; merges = 0; combo = 0; lastMergeAt = 0;
+  shake = 0; banner = null; gameOver = false; hitstop = 0; flash = 0;
+  slowmo = 0; nearMissCd = 0; nextGolden = false;
+  dropCd = 0; dangerTimer = 0;
+  seenLevels = [];
+  runBest = best; beatBest = false;
+  overlay.classList.add('hidden');
+  pending = null; newPending();
+  updateScore();
+  if (typeof adsOnRestart === 'function') adsOnRestart();
+  if (typeof closeShare === 'function') closeShare();
+  runStartAt = Date.now();
+  if (typeof track === 'function') track('game_start', { from: 'restart', best: best, coins: coins });
+}
+
+// ========== 输入 ==========
+// 落果规则（按需求重做）：按住 → 果被吸附并跟随拖动；拖动距离达到阈值后松手 → 才落下。
+// 轻点/单击（几乎没拖动）不落果，避免误触。键盘 ←/→ 仍可移动预备果、空格仍直接落果。
+function ptrToLogical(e) {
+  const rect = canvas.getBoundingClientRect();
+  return (e.clientX - rect.left) / rect.width * W;
+}
+const DROP_DRAG_MIN = 8;              // 需拖动的逻辑距离下限（W=400 坐标系），防误触
+let holdPtr = null;                   // { id, startX, moved }
+canvas.addEventListener('pointerdown', e => {
+  e.preventDefault();
+  initAudio();
+  canvas.setPointerCapture(e.pointerId);
+  holdPtr = null;
+  if (bombArmed || gameOver || !pending) return;   // 炸弹瞄准 / 结算 / 无预备果时不抓果
+  holdPtr = { id: e.pointerId, startX: ptrToLogical(e), moved: 0 };
+  pending.x = clamp(holdPtr.startX, radius(pending.level), W - radius(pending.level));
+});
+canvas.addEventListener('pointermove', e => {
+  if (!holdPtr || holdPtr.id !== e.pointerId) return;   // 只有按住的指针能拖果（鼠标悬停不再带动）
+  if (bombArmed || gameOver || !pending) return;
+  const x = clamp(ptrToLogical(e), radius(pending.level), W - radius(pending.level));
+  holdPtr.moved = Math.max(holdPtr.moved, Math.abs(x - holdPtr.startX));
+  pending.x = x;
+});
+function endHold(e, allowDrop) {
+  if (!holdPtr || (e && e.pointerId !== holdPtr.id)) return;
+  const enough = holdPtr.moved >= DROP_DRAG_MIN;
+  holdPtr = null;
+  if (allowDrop && enough) drop();
+}
+canvas.addEventListener('pointerup', e => endHold(e, true));
+canvas.addEventListener('pointercancel', e => endHold(e, false));
+window.addEventListener('keydown', e => {
+  if (e.key === 'ArrowLeft') keys.left = true;
+  if (e.key === 'ArrowRight') keys.right = true;
+  if (e.key === ' ') { e.preventDefault(); initAudio(); if (!e.repeat) drop(); }
+  if ((e.key === 'r' || e.key === 'R' || e.key === 'Enter') && (gameOver || !balls.length)) {
+    e.preventDefault(); initAudio(); restart();
+  }
+});
+window.addEventListener('keyup', e => {
+  if (e.key === 'ArrowLeft') keys.left = false;
+  if (e.key === 'ArrowRight') keys.right = false;
+});
+document.getElementById('restart').addEventListener('click', restart);
+
+// Prevent iOS rubber-band / overscroll
+document.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+
+// ========== Splash / Start ==========
+if (best > 0) document.getElementById('splashBest').textContent = T('splash_best_prefix', '最高纪录: ') + best;
+function startGame() {
+  if (started) return;
+  started = true;
+  initAudio();
+  splash.classList.add('gone');
+  setTimeout(() => splash.style.display = 'none', 400);
+  hudEl.style.display = '';
+  soundBtn.style.display = '';
+  newPending();
+  updateScore();
+  // 回访玩家（已有纪录）开局先把签到摆出来；新玩家先让他玩，别拦第一局
+  if (best > 0 && typeof maybeAutoCheckin === 'function') maybeAutoCheckin();
+  if (typeof updateItemBar === 'function') updateItemBar();
+  runStartAt = Date.now();
+  if (typeof tutStart === 'function') tutStart();
+  if (typeof track === 'function') track('game_start', { from: 'splash', best: best, coins: coins });
+}
+// 启动页上的按钮（签到/任务/皮肤/商店）走抽屉，不应触发开局
+function onSplashUI(e) {
+  const t = e && e.target;
+  return !!(t && t.closest && t.closest('button, [data-menu], a'));
+}
+splash.addEventListener('pointerdown', e => { if (!onSplashUI(e)) startGame(); });
+splash.addEventListener('keydown', e => { if (!onSplashUI(e)) startGame(); });
+window.addEventListener('keydown', e => {
+  if (!started && (e.key === ' ' || e.key === 'Enter')
+      && !(document.activeElement && document.activeElement.closest && document.activeElement.closest('button'))) startGame();
+});
+
+// ========== 主循环 ==========
+bestEl.textContent = best;
+let last = performance.now(), acc = 0;
+let lastFrameT = 0;
+function loop(t) {
+  // Background tab detection: skip large dt gaps
+  let dt = (t - last) / 1000;
+  last = t;
+  if (dt > 0.5) { dt = 0; acc = 0; } // tab was hidden, skip
+  dt = Math.min(dt, 0.05);
+
+  if (!started) { requestAnimationFrame(loop); return; }
+  // 播广告 / 弹道具商店时冻结世界：绝不能让玩家在看广告时被判死
+  if ((typeof adPaused !== 'undefined' && adPaused) || (typeof sheetOpen !== 'undefined' && sheetOpen) || (typeof shareOpen !== 'undefined' && shareOpen)) { acc = 0; draw(); requestAnimationFrame(loop); return; }
+  if (hitstop > 0) { hitstop -= dt; draw(); requestAnimationFrame(loop); return; }
+  acc += dt * (slowmo > 0 ? 0.4 : 1);
+  let steps = 0;
+  while (acc >= STEP && steps < 6) { step(STEP); acc -= STEP; steps++; }
+  if (steps === 6) acc = 0;
+  draw();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+// ========== 阶段G · 道具系统 ==========
+// 金币 & 背包持久化（localStorage）；道具：撤销/炸弹/换果。
+// 设计意图：金币是后续变现（阶段H 看广告得币、阶段I 签到/任务、皮肤消费）的统一货币。
+const STORE_KEY_COINS = 'suikaCoins';
+const STORE_KEY_INV   = 'suikaInv';
+let coins = +(localStorage.getItem(STORE_KEY_COINS) || 0);
+let inv = (function () {
+  try {
+    const raw = JSON.parse(localStorage.getItem(STORE_KEY_INV));
+    if (raw && typeof raw === 'object') {
+      return { undo: raw.undo | 0, bomb: raw.bomb | 0, swap: raw.swap | 0 };
+    }
+  } catch (e) {}
+  return { undo: 1, bomb: 1, swap: 1 };   // 新玩家赠送各 1 个，先尝到甜头
+})();
+function saveWallet() {
+  try {
+    localStorage.setItem(STORE_KEY_COINS, coins);
+    localStorage.setItem(STORE_KEY_INV, JSON.stringify(inv));
+  } catch (e) {}
+}
+function earnCoins(n) { coins += n; saveWallet(); updateItemBar(); if (typeof questBump === 'function') questBump('coin', n); }
+
+// 道具定义（cost = 金币直购价，阶段H/I 会用到）
+const ITEMS = {
+  undo: { cost: 60, emoji: '↩️', name: '撤销' },
+  bomb: { cost: 40, emoji: '💣', name: '炸弹' },
+  swap: { cost: 30, emoji: '🔀', name: '换果' },
+};
+
+// ---------- 撤销：落果前快照 ----------
+let undoSnapshot = null;
+function takeSnapshot() {
+  undoSnapshot = {
+    balls: balls.map(b => Object.assign({}, b)),
+    score: score, merges: merges, combo: combo, lastMergeAt: lastMergeAt,
+    pending: pending ? Object.assign({}, pending) : null,
+    nextLevel: nextLevel, nextGolden: nextGolden,
+    dangerTimer: dangerTimer, dropCd: dropCd,
+    seenLevels: seenLevels.slice(),
+    coinBase: _lastScoreForCoins,
+  };
+}
+function applySnapshot(s) {
+  balls = s.balls.map(b => Object.assign({}, b));
+  score = s.score; merges = s.merges; combo = s.combo; lastMergeAt = s.lastMergeAt;
+  pending = s.pending ? Object.assign({}, s.pending) : null;
+  nextLevel = s.nextLevel; nextGolden = s.nextGolden;
+  dangerTimer = s.dangerTimer; dropCd = s.dropCd;
+  seenLevels = s.seenLevels.slice();
+  _lastScoreForCoins = s.coinBase;   // 防止撤销后重复领取金币
+  particles = []; popups = []; rings = [];
+  banner = null; shake = 0; flash = 0; hitstop = 0; slowmo = 0;
+  nextEl.textContent = (nextGolden ? '✨' : '') + FRUITS[nextLevel - 1].emoji;
+  updateScore();
+}
+function useUndo() {
+  if (inv.undo <= 0 || !undoSnapshot || gameOver) return false;
+  inv.undo--;
+  // 防刷：撤销回滚分数，则该段分数已发放的「里程碑金币」必须同步收回，
+  // 否则「落果→撤销」可无限循环造币。只回收里程碑币，不动广告/签到等其他来源。
+  const minted = Math.floor(score / 50) - Math.floor(undoSnapshot.coinBase / 50);
+  if (minted > 0) {
+    coins = Math.max(0, coins - minted);
+    if (typeof runCoins === 'number') runCoins = Math.max(0, runCoins - minted);
+  }
+  saveWallet();
+  applySnapshot(undoSnapshot);
+  undoSnapshot = null;                       // 一次快照只可用一次
+  popup(I18N.t('undo_popup'), W / 2, DANGER + 90, '#c4b5fd', 26);
+  ring(W / 2, DANGER + 90, '#a78bfa', 90);
+  flash = Math.max(flash, 0.14);
+  updateItemBar();
+  if (typeof questBump === 'function') questBump('item', 1);
+  return true;
+}
+
+// ---------- 炸弹：点选一个果子消除 ----------
+let bombArmed = false;
+const bombHintEl = document.getElementById('bombHint');
+const btnBombEl  = document.getElementById('btnBomb');
+function setBombArmed(v) {
+  bombArmed = v;
+  bombHintEl.style.display = v ? 'block' : 'none';
+  btnBombEl.classList.toggle('armed', v);
+}
+function armBomb() {
+  if (gameOver) return false;
+  if (!bombArmed && inv.bomb <= 0) return false;
+  setBombArmed(!bombArmed);
+  updateItemBar();
+  return true;
+}
+function executeBomb(x, y) {
+  let target = null, closest = Infinity;
+  for (const b of balls) {
+    if (!b.released || b.expired) continue;
+    const d = Math.hypot(b.x - x, b.y - y);
+    if (d < b.r * 1.35 && d < closest) { closest = d; target = b; }
+  }
+  if (!target) return false;
+  inv.bomb--; saveWallet();
+  setBombArmed(false);
+  const f = FRUITS[target.level - 1];
+  burst(target.x, target.y, f.color, 12 + target.level);
+  burst(target.x, target.y, '#ff9a6b', 8);
+  ring(target.x, target.y, '#ff6a4a', target.r * 2.8);
+  popup('💣', target.x, target.y - 14, '#ff8a5a', 24);
+  shake = Math.max(shake, 0.3);
+  hitstop = Math.max(hitstop, 0.03);
+  removeBall(target);
+  // 唤醒周围睡眠球，让堆叠自然塌落（这是「炸弹救场」的核心手感）
+  for (const o of balls) {
+    if (o.sleeping && Math.hypot(o.x - target.x, o.y - target.y) < target.r * 3 + o.r) {
+      o.sleeping = false; o.rest = 0;
+    }
+  }
+  updateItemBar();
+  if (typeof questBump === 'function') questBump('item', 1);
+  return true;
+}
+
+// ---------- 换果：重掷预备果 ----------
+function useSwap() {
+  if (inv.swap <= 0 || !pending || gameOver) return false;
+  inv.swap--; saveWallet();
+  const old = pending.level;
+  let lv = randLevel();
+  for (let i = 0; i < 6 && lv === old; i++) lv = randLevel();  // 尽量换到不同的
+  pending.level = lv;
+  pending.golden = lv <= 3 && Math.random() < 0.07;
+  pending.x = clamp(pending.x, radius(lv), W - radius(lv));
+  popup(I18N.t('swap_popup'), pending.x, 26 + radius(lv) + 26, '#7bffa8', 20);
+  ring(pending.x, 26, '#7bffa8', radius(lv) * 2.4);
+  updateItemBar();
+  if (typeof questBump === 'function') questBump('item', 1);
+  return true;
+}
+
+// ---------- 金币经济：每 50 分 1 金币 ----------
+let _lastScoreForCoins = 0;
+function checkScoreReward() {
+  const gained = Math.floor(score / 50) - Math.floor(_lastScoreForCoins / 50);
+  _lastScoreForCoins = score;
+  if (gained > 0) {
+    earnCoins(gained);
+    if (typeof runCoins === 'number') runCoins += gained;   // 结算页「金币×2」的基数
+    popup('+' + gained + '💰', W - 46, DANGER + 20, '#ffe08a', 18);
+  }
+}
+
+// ---------- 道具栏 UI ----------
+const coinCountEl = document.getElementById('coinCount');
+const ctUndo = document.getElementById('ctUndo');
+const ctBomb = document.getElementById('ctBomb');
+const ctSwap = document.getElementById('ctSwap');
+const itemBarEl = document.getElementById('itemBar');
+const btnUndoEl = document.getElementById('btnUndo');
+const btnSwapEl = document.getElementById('btnSwap');
+// 金币在「启动页 / 抽屉底部 / 局内道具栏」三处统一刷新
+function coinUISync() {
+  const sc = document.getElementById('splashCoins');
+  if (sc) sc.textContent = coins;
+  const scc = document.getElementById('sheetCoins');
+  if (scc) scc.textContent = coins;
+}
+function updateItemBar() {
+  coinCountEl.textContent = coins;
+  coinUISync();
+  ctUndo.textContent = inv.undo; ctUndo.className = 'ct' + (inv.undo <= 0 ? ' zero' : '');
+  ctBomb.textContent = inv.bomb; ctBomb.className = 'ct' + (inv.bomb <= 0 ? ' zero' : '');
+  ctSwap.textContent = inv.swap; ctSwap.className = 'ct' + (inv.swap <= 0 ? ' zero' : '');
+  btnUndoEl.classList.toggle('disabled', inv.undo <= 0 || !undoSnapshot || gameOver);
+  btnBombEl.classList.toggle('disabled', (inv.bomb <= 0 && !bombArmed) || gameOver);
+  btnSwapEl.classList.toggle('disabled', inv.swap <= 0 || !pending || gameOver);
+}
+// 库存为 0 时点按不是「没反应」，而是弹出获取弹窗 —— 这是道具变现的主要触发点
+function tapItem(kind, use) {
+  if (gameOver) return;
+  if ((inv[kind] | 0) <= 0) { if (typeof openShop === 'function') openShop(kind); return; }
+  use();
+}
+btnUndoEl.addEventListener('pointerdown', e => { e.stopPropagation(); e.preventDefault(); initAudio(); tapItem('undo', useUndo); });
+btnBombEl.addEventListener('pointerdown', e => { e.stopPropagation(); e.preventDefault(); initAudio(); if (bombArmed) { setBombArmed(false); updateItemBar(); return; } tapItem('bomb', armBomb); });
+btnSwapEl.addEventListener('pointerdown', e => { e.stopPropagation(); e.preventDefault(); initAudio(); tapItem('swap', useSwap); });
+
+// 炸弹瞄准态下拦截 canvas 抬手：消除目标而不是落果。
+// capture 阶段 + stopImmediatePropagation 才能压住同元素上已注册的落果 handler。
+canvas.addEventListener('pointerup', function (e) {
+  if (!bombArmed) return;
+  e.stopImmediatePropagation();
+  const rect = canvas.getBoundingClientRect();
+  const lx = (e.clientX - rect.left) / rect.width  * W;
+  const ly = (e.clientY - rect.top)  / rect.height * H;
+  if (!executeBomb(lx, ly)) setBombArmed(false);   // 点空即解除瞄准
+  updateItemBar();
+}, true);
+// 瞄准时也别让指针移动带着预备果乱跑
+canvas.addEventListener('pointermove', function (e) { if (bombArmed) e.stopImmediatePropagation(); }, true);
+// ESC 取消瞄准
+window.addEventListener('keydown', e => { if (e.key === 'Escape' && bombArmed) setBombArmed(false); });
+
+// splash 消失后显示道具栏
+new MutationObserver(() => {
+  if (splash.classList.contains('gone')) { itemBarEl.style.display = ''; updateItemBar(); }
+}).observe(splash, { attributes: true, attributeFilter: ['class'] });
+
+// 每局重开时复位（restart() 未直接改动道具，此处只做同步）
+let _wasGameOver = false;
+function itemsOnRestart() {
+  undoSnapshot = null;
+  _lastScoreForCoins = 0;
+  setBombArmed(false);
+  updateItemBar();
+}
+(function itemWatch() {
+  if (_wasGameOver && !gameOver) itemsOnRestart();
+  _wasGameOver = gameOver;
+  requestAnimationFrame(itemWatch);
+})();
+if (started) { itemBarEl.style.display = ''; }
+updateItemBar();
+
+
+// ========== 阶段H · 广告变现（Provider 抽象 + 三个激励入口） ==========
+// 商业化红线（同时满足 Adsgram / 微信小游戏 / 纯 H5 三端审核）：
+//   1) 广告只在玩家主动点按后播放，绝不自动弹、绝不强制；
+//   2) 不看广告游戏功能完整 —— 金币靠分数产出，道具可用金币购买；
+//   3) 按钮文案明写「看广告」，玩家知情后才点。
+// 渠道抽象成 provider：adsgram(Telegram) / mock(本地&H5 预览) / instant(自动化测试)。
+// 换渠道只需换 provider，业务层（复活 / 领道具 / 金币翻倍）一行都不用改。
+const AD_CONFIG = {
+  provider: 'auto',        // 'auto' | 'adsgram' | 'mock' | 'instant' | 'none'
+  adsgramBlockId: DEPLOY.adsgramBlockId,   // 值来自顶部 DEPLOY.adsgramBlockId；留空自动降级为本地模拟
+  minGapSec: 8,            // 两次激励广告最小间隔，挡连点/防刷
+  dailyCap: 25,            // 单日上限，保护体验也保护账号
+  revivePerRun: 1,         // 每局最多复活次数（>1 会摧毁分数体系的可信度）
+  mockSec: 3,              // 模拟广告时长
+};
+
+// ---------- Telegram 宿主接入（不在 TG 内时全部安静跳过） ----------
+const TG = (typeof window !== 'undefined' && window.Telegram && window.Telegram.WebApp) || null;
+if (TG) {
+  try {
+    TG.ready();
+    TG.expand();
+    if (TG.disableVerticalSwipes) TG.disableVerticalSwipes();   // 防止下拉手势把小程序拖走
+  } catch (e) {}
+  // 部署期自查：TG 环境就绪但广告位没填 → 提示，别让假广告悄悄上线
+  if (!AD_CONFIG.adsgramBlockId) {
+    console.warn('[suika] 已在 Telegram 内运行，但 DEPLOY.adsgramBlockId 为空：广告将走本地模拟（无收入）。上线前到 adsgram.ai 创建广告位并填入顶部 DEPLOY 配置。');
+  }
+}
+function haptic(kind) {
+  if (!TG || !TG.HapticFeedback) return;
+  try { TG.HapticFeedback.impactOccurred(kind || 'light'); } catch (e) {}
+}
+function hapticNotify(kind) {
+  if (!TG || !TG.HapticFeedback) return;
+  try { TG.HapticFeedback.notificationOccurred(kind || 'success'); } catch (e) {}
+}
+
+// ---------- 埋点占位（阶段J 接真实上报，这里先本地留痕，便于测试断言） ----------
+function track(ev, params) {
+  const rec = Object.assign({ ev: ev, t: Date.now() }, params || {});
+  (window.__events = window.__events || []).push(rec);
+  return rec;
+}
+
+// ---------- 频次闸门（跨天重置，落 localStorage） ----------
+const STORE_KEY_AD = 'suikaAd';
+let adState = (function () {
+  try {
+    const raw = JSON.parse(localStorage.getItem(STORE_KEY_AD));
+    if (raw && typeof raw === 'object') return { day: raw.day || '', count: raw.count | 0, lastAt: 0 };
+  } catch (e) {}
+  return { day: '', count: 0, lastAt: 0 };
+})();
+function todayKey() { const d = new Date(); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
+function adRollDay() {
+  const k = todayKey();
+  if (adState.day !== k) { adState.day = k; adState.count = 0; saveAdState(); }
+}
+function saveAdState() {
+  try { localStorage.setItem(STORE_KEY_AD, JSON.stringify({ day: adState.day, count: adState.count })); } catch (e) {}
+}
+function adGate() {
+  adRollDay();
+  if (adState.count >= AD_CONFIG.dailyCap) return 'cap';
+  if (Date.now() - adState.lastAt < AD_CONFIG.minGapSec * 1000) return 'cool';
+  return 'ok';
+}
+
+// ---------- Provider ----------
+function adProviderName() {
+  if (AD_CONFIG.provider !== 'auto') return AD_CONFIG.provider;
+  if (AD_CONFIG.adsgramBlockId && window.Adsgram && typeof window.Adsgram.init === 'function') return 'adsgram';
+  return 'mock';
+}
+let _adsgramCtl = null;
+function adsgramPlay(done) {
+  try {
+    if (!_adsgramCtl) _adsgramCtl = window.Adsgram.init({ blockId: AD_CONFIG.adsgramBlockId });
+    _adsgramCtl.show()
+      .then(() => done('ok'))
+      .catch(err => {
+        const d = (err && (err.description || err.message) || '').toLowerCase();
+        done(d.indexOf('no ad') >= 0 ? 'noads' : 'fail');
+      });
+  } catch (e) { done('fail'); }
+}
+// 本地模拟：全屏遮罩 + 进度条，跑完才算完成（和激励视频语义一致）
+const adVeilEl = document.getElementById('adVeil');
+const adVeilBar = document.getElementById('adVeilBar');
+const adVeilLbl = document.getElementById('adVeilLbl');
+function mockPlay(done) {
+  const dur = AD_CONFIG.mockSec * 1000;
+  const t0 = Date.now();
+  adVeilEl.classList.add('on');
+  (function tick() {
+    const p = Math.min(1, (Date.now() - t0) / dur);
+    adVeilBar.style.width = (p * 100).toFixed(1) + '%';
+    adVeilLbl.textContent = p < 1 ? ('广告播放中… ' + Math.ceil((1 - p) * AD_CONFIG.mockSec) + 's') : '完成';
+    if (p < 1) { requestAnimationFrame(tick); return; }
+    adVeilEl.classList.remove('on');
+    adVeilBar.style.width = '0%';
+    done('ok');
+  })();
+}
+
+// ---------- 统一入口：showRewarded(placement, cb) ----------
+// cb(result) 的 result ∈ 'ok' | 'fail' | 'noads' | 'cap' | 'cool' | 'busy'
+let adPaused = false;   // 播广告 / 弹商店时暂停世界（loop 里读它）
+let adBusy = false;
+function showRewarded(placement, cb) {
+  cb = cb || function () {};
+  if (adBusy) { cb('busy'); return; }
+  const gate = adGate();
+  if (gate !== 'ok') {
+    track('ad_blocked', { placement: placement, reason: gate });
+    adToast(gate === 'cap' ? '今日广告次数已用完，明天再来' : '刚看过啦，稍等几秒');
+    cb(gate);
+    return;
+  }
+  const provider = adProviderName();
+  adBusy = true; adPaused = true;
+  track('ad_start', { placement: placement, provider: provider });
+  const finish = res => {
+    adBusy = false; adPaused = false;
+    if (res === 'ok') {
+      adState.count++; adState.lastAt = Date.now(); saveAdState();
+      hapticNotify('success');
+    } else {
+      adToast(res === 'noads' ? '暂时没有可播的广告' : '广告加载失败，稍后再试');
+    }
+    track('ad_end', { placement: placement, provider: provider, result: res });
+    cb(res);
+  };
+  if (provider === 'adsgram') adsgramPlay(finish);
+  else if (provider === 'instant') finish('ok');       // 自动化测试用：同步完成
+  else if (provider === 'none') finish('fail');
+  else mockPlay(finish);
+}
+
+// ---------- 轻量 toast（动态创建，不额外污染 HTML/CSS） ----------
+const adToastEl = document.createElement('div');
+adToastEl.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);'
+  + 'bottom:calc(env(safe-area-inset-bottom,0px) + 78px);z-index:900;'
+  + 'background:rgba(20,15,36,0.94);border:1px solid rgba(255,255,255,0.14);'
+  + 'color:#efe9ff;font:600 12px/1.1 "PingFang SC","Segoe UI",sans-serif;'
+  + 'padding:10px 15px;border-radius:999px;display:none;letter-spacing:1px;'
+  + 'box-shadow:0 8px 24px rgba(0,0,0,0.5);max-width:80vw;text-align:center';
+document.body.appendChild(adToastEl);
+let _toastTimer = 0;
+function adToast(msg) {
+  adToastEl.textContent = msg;
+  adToastEl.style.display = 'block';
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => { adToastEl.style.display = 'none'; }, 1900);
+}
+
+// ---------- 入口①：看广告复活（价值最高，放在结算页首位） ----------
+let reviveUsed = 0;
+function canRevive() { return gameOver && reviveUsed < AD_CONFIG.revivePerRun && score > 0; }
+function doRevive() {
+  if (!gameOver || reviveUsed >= AD_CONFIG.revivePerRun) return;   // 二道闸：防重复/防非结算态触发
+  // 清掉压在警戒线附近的一批果子腾出空间 —— 复活必须真的「救得回来」，
+  // 否则玩家复活后 2 秒又死，会觉得广告是骗人的，从此再不点。
+  const sorted = balls.filter(b => b.released && !b.expired).sort((a, b) => (a.y - a.r) - (b.y - b.r));
+  let victims = sorted.filter(b => b.y - b.r < DANGER + 170);
+  if (victims.length < 3) victims = sorted.slice(0, 3);
+  if (victims.length > 9) victims = victims.slice(0, 9);
+  for (const b of victims) {
+    const f = FRUITS[b.level - 1];
+    burst(b.x, b.y, f.color, 10 + b.level);
+    ring(b.x, b.y, '#7bffa8', b.r * 2.6);
+    removeBall(b);
+  }
+  for (const b of balls) { b.sleeping = false; b.rest = 0; }   // 让堆叠自然塌落
+  reviveUsed++;
+  gameOver = false;
+  dangerTimer = 0;
+  dropCd = 0.35;
+  overlay.classList.add('hidden');
+  if (!pending) newPending();
+  undoSnapshot = null;
+  banner = { text: I18N.t('revive_banner'), life: 1.4 };
+  shake = Math.max(shake, 0.45);
+  flash = Math.max(flash, 0.3);
+  updateItemBar();
+  track('revive_done', { score: score, cleared: victims.length });
+  return victims.length;
+}
+
+// ---------- 入口②：金币翻倍（结算页，零风险白拿） ----------
+let runCoins = 0;      // 本局靠分数产出的金币
+let x2Used = false;
+function canX2() { return gameOver && !x2Used && runCoins > 0; }
+function doX2() {
+  if (x2Used || !gameOver || runCoins <= 0) return;   // 防重复领取（按钮隐藏之外的二道闸）
+  x2Used = true;
+  earnCoins(runCoins);
+  finalCoinsEl.textContent = runCoins * 2;
+  adToast(I18N.t('toast_x2').replace('{n}', runCoins));
+  track('coins_x2', { amount: runCoins });
+  refreshOverBtns();
+}
+
+// ---------- 入口③：道具耗尽时的获取弹窗（金币买 or 看广告白拿） ----------
+const shopPopEl = document.getElementById('shopPop');
+const shopIcoEl = document.getElementById('shopIco');
+const shopNameEl = document.getElementById('shopName');
+const shopDescEl = document.getElementById('shopDesc');
+const shopBuyEl = document.getElementById('shopBuy');
+const shopAdEl = document.getElementById('shopAd');
+const shopCloseEl = document.getElementById('shopClose');
+const ITEM_DESC = {
+  undo: '撤销上一次落果，手滑能拉回来',
+  bomb: '点掉任意一颗果子，堆高时救场',
+  swap: '重掷预备果，换掉不想要的',
+};
+let shopKind = null;
+function openShop(kind) {
+  if (!ITEMS[kind]) return false;
+  shopKind = kind;
+  adPaused = true;
+  const it = ITEMS[kind];
+  shopIcoEl.textContent = it.emoji;
+  shopNameEl.textContent = I18N.t('item_name_' + kind) || it.name;
+  shopDescEl.textContent = I18N.t('item_desc_' + kind) || ITEM_DESC[kind] || '';
+  shopBuyEl.textContent = I18N.t('shop_buy_fmt').replace('{n}', it.cost);
+  shopAdEl.textContent = I18N.t('shop_ad_btn');
+  shopBuyEl.disabled = coins < it.cost;
+  shopPopEl.classList.add('on');
+  track('shop_open', { kind: kind, coins: coins });
+  return true;
+}
+function closeShop() {
+  shopPopEl.classList.remove('on');
+  adPaused = false;
+  shopKind = null;
+}
+function shopBuy() {
+  if (!shopKind) return false;
+  const it = ITEMS[shopKind];
+  if (coins < it.cost) { adToast(I18N.t('toast_not_enough')); return false; }
+  coins -= it.cost;
+  inv[shopKind] = (inv[shopKind] | 0) + 1;
+  saveWallet();
+  updateItemBar();
+  adToast(it.emoji + ' ' + (I18N.t('item_name_' + shopKind) || it.name) + ' +1');
+  track('item_buy', { kind: shopKind, cost: it.cost });
+  hapticNotify('success');
+  closeShop();
+  return true;
+}
+function shopWatchAd() {
+  const kind = shopKind;
+  if (!kind) return false;
+  showRewarded('item_' + kind, res => {
+    if (res !== 'ok') return;
+    inv[kind] = (inv[kind] | 0) + 1;
+    saveWallet();
+    updateItemBar();
+    adToast(ITEMS[kind].emoji + ' ' + ITEMS[kind].name + ' +1');
+    track('item_ad_grant', { kind: kind });
+    closeShop();
+  });
+  return true;
+}
+shopBuyEl.addEventListener('click', shopBuy);
+shopAdEl.addEventListener('click', shopWatchAd);
+shopCloseEl.addEventListener('click', closeShop);
+
+// ---------- 结算页按钮状态 ----------
+const finalCoinsEl = document.getElementById('finalCoins');
+const btnReviveEl = document.getElementById('btnRevive');
+const btnX2El = document.getElementById('btnX2');
+function refreshOverBtns() {
+  btnReviveEl.style.display = canRevive() ? '' : 'none';
+  btnX2El.style.display = canX2() ? '' : 'none';
+  btnX2El.textContent = I18N.t('x2_btn_fmt').replace('{n}', runCoins);
+}
+function onGameOverAds() {
+  finalCoinsEl.textContent = runCoins;
+  refreshOverBtns();
+  track('game_over', { score: score, merges: merges, runCoins: runCoins, reviveUsed: reviveUsed });
+}
+btnReviveEl.addEventListener('click', () => {
+  showRewarded('revive', res => { if (res === 'ok') doRevive(); });
+});
+btnX2El.addEventListener('click', () => {
+  showRewarded('coins_x2', res => { if (res === 'ok') doX2(); });
+});
+
+// ---------- 每局复位 ----------
+function adsOnRestart() {
+  reviveUsed = 0;
+  x2Used = false;
+  runCoins = 0;
+  closeShop();
+  refreshOverBtns();
+}
+
+
+// ========== 同步模拟器（测试用） ==========
+// ===== 阶段I · 留存系统（每日签到 / 每日任务 / 皮肤解锁）=====
+// 设计闭环：签到与任务持续产出金币 → 金币唯一去处是皮肤与道具 → 皮肤是长期目标 →
+// 玩家每天回来。星际皮肤只能靠连签 7 天拿到，制造"不能断"的心理账户。
+
+// ---------- 皮肤表 ----------
+// 只换 emoji + 配色，不动尺寸/物理，视觉换肤零风险。
+// 配色刻意沿用"紫→红→橙→黄→绿…"的原色相推进，保证等级仍然一眼可辨。
+const SKINS = [
+  { id: 'fruit', name: '经典水果', ico: '🍉', cost: 0, how: '默认',
+    set: [['🍇','#a78bfa'],['🍒','#f87171'],['🍊','#fb923c'],['🍋','#facc15'],['🥝','#86efac'],
+          ['🍅','#ef4444'],['🍑','#f9a8d4'],['🍍','#fde047'],['🥥','#d6b58a'],['🍈','#4ade80'],['🍉','#22c55e']] },
+  { id: 'dessert', name: '甜点铺', ico: '🍰', cost: 150, how: '150 金币',
+    set: [['🍬','#c4b5fd'],['🍭','#fb7185'],['🍩','#fb923c'],['🍪','#fbbf24'],['🧁','#86efac'],
+          ['🍫','#c2703a'],['🍰','#f9a8d4'],['🍮','#fde047'],['🥧','#d6b58a'],['🍨','#67e8f9'],['🎂','#f472b6']] },
+  { id: 'ocean', name: '海洋馆', ico: '🐬', cost: 380, how: '380 金币',
+    set: [['🐚','#c4b5fd'],['🦐','#f87171'],['🦀','#fb923c'],['🐠','#facc15'],['🐢','#86efac'],
+          ['🐡','#ef4444'],['🐙','#f9a8d4'],['🦑','#fde047'],['🦈','#94a3b8'],['🐬','#38bdf8'],['🐳','#0ea5e9']] },
+  { id: 'cosmos', name: '星际', ico: '🪐', cost: -1, how: '连续签到 7 天',
+    set: [['✨','#c4b5fd'],['💫','#f0abfc'],['⭐','#fbbf24'],['☄️','#fb923c'],['🌙','#e2e8f0'],
+          ['🪐','#f59e0b'],['🌍','#38bdf8'],['🌎','#22d3ee'],['🌏','#34d399'],['🌟','#fde047'],['🌌','#8b5cf6']] },
+];
+const SKIN_BY_ID = {};
+for (const s of SKINS) SKIN_BY_ID[s.id] = s;
+
+const STORE_KEY_SKIN = 'suikaSkin';
+let skinState = (function () {
+  try {
+    const raw = JSON.parse(localStorage.getItem(STORE_KEY_SKIN));
+    if (raw && typeof raw === 'object') {
+      const owned = Array.isArray(raw.owned) ? raw.owned.filter(id => SKIN_BY_ID[id]) : [];
+      if (owned.indexOf('fruit') < 0) owned.push('fruit');
+      return { owned: owned, cur: SKIN_BY_ID[raw.cur] ? raw.cur : 'fruit' };
+    }
+  } catch (e) {}
+  return { owned: ['fruit'], cur: 'fruit' };
+})();
+function saveSkin() {
+  try { localStorage.setItem(STORE_KEY_SKIN, JSON.stringify(skinState)); } catch (e) {}
+}
+// 就地改写 FRUITS 的 emoji/color —— 所有绘制代码都读 FRUITS，无需改动一行渲染逻辑
+function applySkin(id) {
+  const sk = SKIN_BY_ID[id];
+  if (!sk) return false;
+  for (let i = 0; i < FRUITS.length; i++) {
+    FRUITS[i].emoji = sk.set[i][0];
+    FRUITS[i].color = sk.set[i][1];
+  }
+  skinState.cur = id;
+  saveSkin();
+  if (typeof updateScore === 'function') updateScore();
+  return true;
+}
+function ownSkin(id) { return skinState.owned.indexOf(id) >= 0; }
+function grantSkin(id) {
+  if (!SKIN_BY_ID[id] || ownSkin(id)) return false;
+  skinState.owned.push(id);
+  saveSkin();
+  track('skin_unlock', { id: id });
+  return true;
+}
+function buySkin(id) {
+  const sk = SKIN_BY_ID[id];
+  if (!sk || sk.cost <= 0 || ownSkin(id) || coins < sk.cost) return false;
+  coins -= sk.cost;
+  saveWallet();
+  updateItemBar();
+  grantSkin(id);
+  applySkin(id);
+  hapticNotify('success');
+  adToast(I18N.t('toast_unlock_skin').replace('{t}', sk.ico + ' ' + sk.name));
+  renderSheet();
+  return true;
+}
+function equipSkin(id) {
+  if (!ownSkin(id)) return false;
+  applySkin(id);
+  haptic('light');
+  renderSheet();
+  return true;
+}
+
+// ---------- 每日签到 ----------
+// 7 天一轮，第 7 天给限定皮肤 —— 断签回到第 1 天，这是留存的核心压力来源。
+const CHECKIN = [
+  { d: 1, kind: 'coins', n: 20,  ico: '💰', lbl: '20 金币' },
+  { d: 2, kind: 'undo',  n: 1,   ico: '↩️', lbl: '撤销 ×1' },
+  { d: 3, kind: 'coins', n: 40,  ico: '💰', lbl: '40 金币' },
+  { d: 4, kind: 'bomb',  n: 1,   ico: '💣', lbl: '炸弹 ×1' },
+  { d: 5, kind: 'coins', n: 70,  ico: '💰', lbl: '70 金币' },
+  { d: 6, kind: 'swap',  n: 1,   ico: '🔀', lbl: '换果 ×1' },
+  { d: 7, kind: 'skin',  n: 0,   ico: '🪐', lbl: '星际皮肤' },
+];
+const STORE_KEY_DAILY = 'suikaDaily';
+function dayNum(d) {   // 以本地日为单位的整数天号，用于判断"昨天"
+  const t = d || new Date();
+  return Math.floor((t - t.getTimezoneOffset() * 60000) / 86400000);
+}
+let dailyState = (function () {
+  try {
+    const raw = JSON.parse(localStorage.getItem(STORE_KEY_DAILY));
+    if (raw && typeof raw === 'object') {
+      return { last: raw.last | 0, streak: raw.streak | 0, doubled: !!raw.doubled };
+    }
+  } catch (e) {}
+  return { last: 0, streak: 0, doubled: false };
+})();
+function saveDaily() {
+  try { localStorage.setItem(STORE_KEY_DAILY, JSON.stringify(dailyState)); } catch (e) {}
+}
+function checkinClaimedToday() { return dailyState.last === dayNum(); }
+// 今天该签第几天（1..7）：连着签就往后走，断了从 1 开始
+function checkinSlot() {
+  if (checkinClaimedToday()) return ((dailyState.streak - 1) % 7) + 1;
+  const cont = dailyState.last === dayNum() - 1;
+  const next = cont ? dailyState.streak + 1 : 1;
+  return ((next - 1) % 7) + 1;
+}
+function grantReward(kind, n) {
+  if (kind === 'coins') { earnCoins(n); return n + ' 💰'; }
+  if (kind === 'skin')  { grantSkin('cosmos'); return '🪐 星际皮肤'; }
+  inv[kind] = (inv[kind] | 0) + n;
+  saveWallet(); updateItemBar();
+  return (ITEMS[kind] ? ITEMS[kind].ico : '') + ' ×' + n;
+}
+function doCheckin() {
+  if (checkinClaimedToday()) return false;
+  const cont = dailyState.last === dayNum() - 1;
+  dailyState.streak = cont ? dailyState.streak + 1 : 1;
+  dailyState.last = dayNum();
+  dailyState.doubled = false;
+  saveDaily();
+  const slot = ((dailyState.streak - 1) % 7) + 1;
+  const r = CHECKIN[slot - 1];
+  const txt = grantReward(r.kind, r.n);
+  hapticNotify('success');
+  adToast(I18N.t('toast_checkin_ok').replace('{t}', txt));
+  track('checkin', { day: slot, streak: dailyState.streak, kind: r.kind });
+  renderSheet();
+  updateMenuDots();
+  return true;
+}
+function canDoubleCheckin() {
+  if (!checkinClaimedToday() || dailyState.doubled) return false;
+  const slot = ((dailyState.streak - 1) % 7) + 1;
+  return CHECKIN[slot - 1].kind !== 'skin';   // 皮肤没法翻倍
+}
+function doubleCheckin() {
+  if (!canDoubleCheckin()) return false;
+  dailyState.doubled = true;
+  saveDaily();
+  const slot = ((dailyState.streak - 1) % 7) + 1;
+  const r = CHECKIN[slot - 1];
+  const txt = grantReward(r.kind, r.n);
+  adToast(I18N.t('toast_double_ok').replace('{t}', txt));
+  track('checkin_double', { day: slot });
+  renderSheet();
+  return true;
+}
+
+// ---------- 每日任务 ----------
+// 用日期做种子确定性抽 3 个，避免刷新页面换题；跨天自动重置。
+const QUEST_POOL = [
+  { id: 'play',  type: 'play',  need: 3,   ico: '🎮', lbl: '完成 3 局游戏',    reward: 25 },
+  { id: 'merge', type: 'merge', need: 30,  ico: '🔗', lbl: '累计合成 30 次',   reward: 25 },
+  { id: 'score', type: 'score', need: 800, ico: '🎯', lbl: '单局得分达到 800', reward: 30 },
+  { id: 'lv6',   type: 'level', need: 6,   ico: '🍅', lbl: '合成出第 6 级果',  reward: 30 },
+  { id: 'lv8',   type: 'level', need: 8,   ico: '🍍', lbl: '合成出第 8 级果',  reward: 40 },
+  { id: 'item',  type: 'item',  need: 2,   ico: '🧰', lbl: '使用道具 2 次',    reward: 20 },
+  { id: 'combo', type: 'combo', need: 3,   ico: '⚡', lbl: '打出 3 连击',      reward: 25 },
+  { id: 'coin',  type: 'coin',  need: 60,  ico: '💰', lbl: '今日赚 60 金币',   reward: 25 },
+];
+const QUEST_BONUS = 60;   // 三题全清的额外宝箱
+const STORE_KEY_QUEST = 'suikaQuest';
+let questState = null;
+function questPick(day) {
+  // xorshift(day) 定序洗牌，取前 3
+  let s = (day * 2654435761) >>> 0;
+  const rnd = () => { s ^= s << 13; s >>>= 0; s ^= s >> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; };
+  const pool = QUEST_POOL.slice();
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(rnd() * (i + 1));
+    const t = pool[i]; pool[i] = pool[j]; pool[j] = t;
+  }
+  return pool.slice(0, 3).map(q => ({ id: q.id, prog: 0, claimed: false }));
+}
+function questLoad() {
+  const day = dayNum();
+  let st = null;
+  try { st = JSON.parse(localStorage.getItem(STORE_KEY_QUEST)); } catch (e) {}
+  if (!st || st.day !== day || !Array.isArray(st.q) || st.q.length !== 3) {
+    st = { day: day, q: questPick(day), bonus: false };
+  }
+  questState = st;
+  questSave();
+}
+function questSave() {
+  try { localStorage.setItem(STORE_KEY_QUEST, JSON.stringify(questState)); } catch (e) {}
+}
+function questRollDay() { if (!questState || questState.day !== dayNum()) questLoad(); }
+function questDef(id) { for (const q of QUEST_POOL) if (q.id === id) return q; return null; }
+function questDone(rec) { const d = questDef(rec.id); return d && rec.prog >= d.need; }
+function questAllDone() { return questState.q.every(questDone); }
+// 累加型进度（play/merge/item/coin）
+function questBump(type, n) {
+  questRollDay();
+  let hit = false;
+  for (const rec of questState.q) {
+    const d = questDef(rec.id);
+    if (!d || d.type !== type || rec.claimed) continue;
+    if (questDone(rec)) continue;
+    rec.prog += (n || 1);
+    hit = true;
+    if (questDone(rec)) { adToast(d.ico + ' 任务完成 · 可领 ' + d.reward + '💰'); hapticNotify('success'); }
+  }
+  if (hit) { questSave(); updateMenuDots(); }
+}
+// 峰值型进度（score/level/combo）：取本日最大值
+function questPeak(type, v) {
+  questRollDay();
+  let hit = false;
+  for (const rec of questState.q) {
+    const d = questDef(rec.id);
+    if (!d || d.type !== type || rec.claimed) continue;
+    if (questDone(rec)) continue;
+    if (v > rec.prog) { rec.prog = v; hit = true; }
+    if (questDone(rec)) { adToast(d.ico + ' 任务完成 · 可领 ' + d.reward + '💰'); hapticNotify('success'); }
+  }
+  if (hit) { questSave(); updateMenuDots(); }
+}
+function questClaim(id) {
+  questRollDay();
+  const rec = questState.q.filter(r => r.id === id)[0];
+  if (!rec || rec.claimed || !questDone(rec)) return false;
+  const d = questDef(id);
+  rec.claimed = true;
+  questSave();
+  earnCoins(d.reward);
+  hapticNotify('success');
+  adToast('+' + d.reward + ' 💰');
+  track('quest_claim', { id: id, reward: d.reward });
+  renderSheet();
+  updateMenuDots();
+  return true;
+}
+function questBonusReady() { questRollDay(); return !questState.bonus && questState.q.every(r => r.claimed); }
+function questClaimBonus() {
+  if (!questBonusReady()) return false;
+  questState.bonus = true;
+  questSave();
+  earnCoins(QUEST_BONUS);
+  hapticNotify('success');
+  adToast(I18N.t('toast_quest_bonus').replace('{n}', QUEST_BONUS));
+  track('quest_bonus', { reward: QUEST_BONUS });
+  renderSheet();
+  updateMenuDots();
+  return true;
+}
+function questClaimable() {
+  questRollDay();
+  let n = 0;
+  for (const rec of questState.q) if (!rec.claimed && questDone(rec)) n++;
+  if (questBonusReady()) n++;
+  return n;
+}
+
+// ---------- 统一抽屉 UI ----------
+const sheetEl = document.getElementById('sheet');
+const sheetTitleEl = document.getElementById('sheetTitle');
+const sheetBodyEl = document.getElementById('sheetBody');
+let sheetKind = null;
+let sheetOpen = false;
+function openSheet(kind) {
+  sheetKind = kind;
+  sheetOpen = true;
+  sheetEl.classList.add('on');
+  renderSheet();
+  track('sheet_open', { kind: kind });
+  return true;
+}
+function closeSheet() {
+  sheetOpen = false;
+  sheetKind = null;
+  sheetEl.classList.remove('on');
+  updateMenuDots();
+  return true;
+}
+function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+function renderSheet() {
+  if (!sheetOpen) return;
+  if (sheetKind === 'checkin') { sheetTitleEl.textContent = I18N.t('sheet_checkin'); sheetBodyEl.innerHTML = viewCheckin(); }
+  else if (sheetKind === 'quest') { sheetTitleEl.textContent = I18N.t('sheet_quest'); sheetBodyEl.innerHTML = viewQuest(); }
+  else if (sheetKind === 'skin') { sheetTitleEl.textContent = I18N.t('sheet_skin'); sheetBodyEl.innerHTML = viewSkin(); }
+  else if (sheetKind === 'shop') { sheetTitleEl.textContent = I18N.t('sheet_shop'); sheetBodyEl.innerHTML = viewShop(); }
+  coinUISync();
+}
+
+function viewCheckin() {
+  const slot = checkinSlot();
+  const claimed = checkinClaimedToday();
+  let g = '<div class="ciGrid">';
+  for (const r of CHECKIN) {
+    const past = r.d < slot || (r.d === slot && claimed);
+    const cur = r.d === slot && !claimed;
+    g += '<div class="ciCell' + (past ? ' got' : '') + (cur ? ' cur' : '') + (r.d === 7 ? ' big' : '') + '">' +
+         '<div class="d">第' + r.d + '天</div>' +
+         '<div class="ico">' + r.ico + '</div>' +
+         '<div class="lbl">' + esc(r.lbl) + '</div>' +
+         (past ? '<div class="tick">✓</div>' : '') +
+         '</div>';
+  }
+  g += '</div>';
+  g += '<p class="ciFoot">已连签 <b>' + dailyState.streak + '</b> 天 · 断签从第 1 天重来</p>';
+  if (!claimed) {
+    g += '<button class="sBtn main" data-act="checkin">立即签到 · 领' + esc(CHECKIN[slot - 1].lbl) + '</button>';
+  } else if (canDoubleCheckin()) {
+    g += '<button class="sBtn ad" data-act="ciDouble">📺 看广告 · 今日奖励翻倍</button>';
+    g += '<p class="ciFoot">明天再来领第 ' + (slot % 7 + 1) + ' 天奖励</p>';
+  } else {
+    g += '<p class="ciFoot ok">今日已签到 ✓</p>';
+  }
+  return g;
+}
+
+function viewQuest() {
+  questRollDay();
+  let h = '<div class="qList">';
+  for (const rec of questState.q) {
+    const d = questDef(rec.id);
+    const done = questDone(rec);
+    const p = Math.min(1, rec.prog / d.need);
+    h += '<div class="qRow' + (rec.claimed ? ' claimed' : '') + '">' +
+         '<div class="qIco">' + d.ico + '</div>' +
+         '<div class="qMid">' +
+           '<div class="qLbl">' + esc(d.lbl) + '</div>' +
+           '<div class="qBar"><i style="width:' + (p * 100).toFixed(0) + '%"></i></div>' +
+           '<div class="qNum">' + Math.min(rec.prog, d.need) + ' / ' + d.need + '</div>' +
+         '</div>' +
+         (rec.claimed
+            ? '<div class="qGot">已领</div>'
+            : '<button class="qBtn' + (done ? '' : ' off') + '" data-act="qClaim" data-id="' + rec.id + '"' + (done ? '' : ' disabled') + '>+' + d.reward + '💰</button>') +
+         '</div>';
+  }
+  h += '</div>';
+  const ready = questBonusReady();
+  h += '<div class="qBonus' + (questState.bonus ? ' claimed' : (ready ? ' ready' : '')) + '">' +
+       '<span>🎁 三题全清宝箱</span>' +
+       (questState.bonus
+          ? '<b>已领</b>'
+          : '<button class="qBtn' + (ready ? '' : ' off') + '" data-act="qBonus"' + (ready ? '' : ' disabled') + '>+' + QUEST_BONUS + '💰</button>') +
+       '</div>';
+  h += '<p class="ciFoot">任务每天 0 点刷新</p>';
+  return h;
+}
+
+function viewSkin() {
+  let h = '<div class="skGrid">';
+  for (const sk of SKINS) {
+    const own = ownSkin(sk.id);
+    const cur = skinState.cur === sk.id;
+    const prev = sk.set.slice(0, 3).map(e => '<span style="color:' + e[1] + '">' + e[0] + '</span>').join('');
+    let btn;
+    if (cur) btn = '<div class="skOn">使用中</div>';
+    else if (own) btn = '<button class="skBtn use" data-act="skEquip" data-id="' + sk.id + '">使用</button>';
+    else if (sk.cost > 0) btn = '<button class="skBtn buy' + (coins >= sk.cost ? '' : ' off') + '" data-act="skBuy" data-id="' + sk.id + '"' + (coins >= sk.cost ? '' : ' disabled') + '>💰 ' + sk.cost + '</button>';
+    else btn = '<div class="skLock">🔒 ' + esc(sk.how) + '</div>';
+    h += '<div class="skCard' + (cur ? ' cur' : '') + (own ? '' : ' lock') + '">' +
+         '<div class="skPrev">' + prev + '</div>' +
+         '<div class="skName">' + sk.ico + ' ' + esc(sk.name) + '</div>' +
+         btn + '</div>';
+  }
+  h += '</div>';
+  h += '<p class="ciFoot">金币来自分数、签到与每日任务</p>';
+  return h;
+}
+
+// ---------- 商店页（独立入口：启动页/结算页菜单里的「🛒 商店」） ----------
+// 用金币购买对局道具（撤销/炸弹/换果）；不足时提示来源，与局内弹窗 shopPop 共用 ITEMS 定价。
+function viewShop() {
+  let h = '';
+  const order = ['undo', 'bomb', 'swap'];
+  for (const kind of order) {
+    const it = ITEMS[kind];
+    if (!it) continue;
+    const owned = inv[kind] | 0;
+    const afford = coins >= it.cost;
+    h += '<div class="shRow">' +
+         '<div class="shIco">' + it.emoji + '</div>' +
+         '<div class="shMid">' +
+           '<div class="shName">' + esc(I18N.t('item_name_' + kind) || it.name) + '</div>' +
+           '<div class="shDesc">' + esc(I18N.t('item_desc_' + kind) || '') + '</div>' +
+         '</div>' +
+         '<div class="shOwn">' + esc(I18N.t('shop_owned').replace('{n}', owned)) + '</div>' +
+         '<button class="shBuy" data-act="shopBuy" data-id="' + kind + '"' + (afford ? '' : ' disabled') + '>💰 ' + it.cost + '</button>' +
+         '</div>';
+  }
+  h += '<p class="shFoot">' + esc(I18N.t('shop_foot')) + '</p>';
+  return h;
+}
+function sheetShopBuy(kind) {
+  const it = ITEMS[kind];
+  if (!it) return false;
+  if (coins < it.cost) {
+    adToast(I18N.t('toast_not_enough'));
+    return false;
+  }
+  coins -= it.cost;
+  inv[kind] = (inv[kind] | 0) + 1;
+  saveWallet();
+  updateItemBar();
+  coinUISync();
+  hapticNotify('success');
+  adToast((I18N.t('item_name_' + kind) || it.name) + ' +1');
+  track('item_buy', { kind: kind, cost: it.cost, from: 'sheet' });
+  renderSheet();
+  return true;
+}
+
+// 事件委托：抽屉里所有按钮走一个入口，渲染用 innerHTML 也不会丢监听
+sheetBodyEl.addEventListener('click', e => {
+  const t = e.target.closest('[data-act]');
+  if (!t || t.disabled) return;
+  const act = t.getAttribute('data-act');
+  const id = t.getAttribute('data-id');
+  if (act === 'checkin') doCheckin();
+  else if (act === 'ciDouble') showRewarded('checkin_x2', res => { if (res === 'ok') doubleCheckin(); });
+  else if (act === 'qClaim') questClaim(id);
+  else if (act === 'qBonus') questClaimBonus();
+  else if (act === 'skEquip') equipSkin(id);
+  else if (act === 'skBuy') buySkin(id);
+  else if (act === 'shopBuy') sheetShopBuy(id);
+});
+document.getElementById('sheetClose').addEventListener('click', closeSheet);
+sheetEl.addEventListener('click', e => { if (e.target === sheetEl) closeSheet(); });
+
+// ---------- 入口按钮（开始页 + 结算页各一排）----------
+function updateMenuDots() {
+  questRollDay();
+  const ci = !checkinClaimedToday() || canDoubleCheckin();
+  const qn = questClaimable();
+  const nodes = document.querySelectorAll('[data-menu]');
+  for (let i = 0; i < nodes.length; i++) {
+    const n = nodes[i];
+    const k = n.getAttribute('data-menu');
+    const on = k === 'checkin' ? ci : (k === 'quest' ? qn > 0 : false);
+    n.classList.toggle('dot', !!on);
+  }
+}
+document.addEventListener('click', e => {
+  const t = e.target.closest ? e.target.closest('[data-menu]') : null;
+  if (!t) return;
+  e.stopPropagation();     // 开始页是"点任意处开始"，这里必须拦住冒泡
+  e.preventDefault();
+  const menu = t.getAttribute('data-menu');
+  if (menu === 'share') { shareGame(); return; }   // 分享是即时动作，不走抽屉
+  openSheet(menu);
+}, true);
+
+// ---------- 启动 ----------
+questLoad();
+applySkin(skinState.cur);
+updateMenuDots();
+// 每天首次进入自动把签到摆到眼前（不是广告，自动弹不违规且是留存关键）
+let checkinAutoShown = false;
+function maybeAutoCheckin() {
+  if (checkinAutoShown || checkinClaimedToday()) return false;
+  checkinAutoShown = true;
+  openSheet('checkin');
+  return true;
+}
+
+// ========== 阶段J · 病毒传播 + 埋点 + 新手引导 ==========
+// 三件事，一条主线：让新玩家 30 秒内学会（引导）→ 玩爽了愿意晒（分享卡）→
+// 每一步都留下可回捞的数据（埋点）。任何一环缺失，买量/自然流都算不出账。
+const SHARE = {
+  // 深链统一取自顶部 DEPLOY.botLink（替换 bot 只需改那一处）
+  link: DEPLOY.botLink,
+  // 展示名不在此写死：分享卡片/文案统一从 I18N 按当前语言取（zh=合成大西瓜 / en=Merge Melon）
+  dailyReward: 30,        // 每日首次分享的金币奖励（只给一次，防刷）
+  cardW: 900, cardH: 1200,
+};
+const TELEMETRY = {
+  endpoint: '',           // 填后端 URL 即开始真实上报；留空 = 只在本地留痕（当前发布态）
+  batch: 12,              // 攒够多少条发一次，省电省流量
+  maxQueue: 200,          // 离线兜底上限，超了丢最旧的
+  appVer: 'j1',
+};
+
+// ---------- 身份与会话（无后端也能拼出留存/漏斗） ----------
+function tmUid() {
+  try {
+    if (TG && TG.initDataUnsafe && TG.initDataUnsafe.user && TG.initDataUnsafe.user.id) {
+      return 'tg' + TG.initDataUnsafe.user.id;
+    }
+  } catch (e) {}
+  try {
+    let u = localStorage.getItem('suikaUid');
+    if (!u) {
+      u = 'w' + Date.now().toString(36) + Math.floor(Math.random() * 1679616).toString(36);
+      localStorage.setItem('suikaUid', u);
+    }
+    return u;
+  } catch (e) {}
+  return 'anon';
+}
+const TM_UID = tmUid();
+const TM_SID = 's' + Date.now().toString(36) + Math.floor(Math.random() * 46656).toString(36);
+const TM_T0 = Date.now();
+let tmSeq = 0, tmQueue = [], tmSent = 0, tmDropped = 0, tmFlushes = 0, tmLastPayload = null;
+
+function tmEnqueue(rec) {
+  rec.sid = TM_SID; rec.uid = TM_UID; rec.v = TELEMETRY.appVer;
+  rec.n = ++tmSeq; rec.rt = Date.now() - TM_T0;      // 相对开机毫秒，做漏斗时序
+  tmQueue.push(rec);
+  if (tmQueue.length > TELEMETRY.maxQueue) {
+    tmDropped += tmQueue.length - TELEMETRY.maxQueue;
+    tmQueue.splice(0, tmQueue.length - TELEMETRY.maxQueue);
+  }
+  if (tmQueue.length >= TELEMETRY.batch) tmFlush('batch');
+  return rec;
+}
+function tmFlush(reason) {
+  const n = tmQueue.length;
+  if (!n) return 0;
+  const payload = {
+    app: 'suika', v: TELEMETRY.appVer, sid: TM_SID, uid: TM_UID,
+    reason: reason || 'manual', ts: Date.now(), events: tmQueue.slice(),
+  };
+  tmQueue.length = 0;
+  tmFlushes++; tmSent += n;
+  tmLastPayload = payload;
+  if (!TELEMETRY.endpoint) return n;      // 无后端：只在内存留痕，绝不发请求
+  const body = JSON.stringify(payload);
+  try {
+    if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
+      navigator.sendBeacon(TELEMETRY.endpoint, body);
+      return n;
+    }
+  } catch (e) {}
+  try {
+    if (typeof fetch === 'function') {
+      fetch(TELEMETRY.endpoint, { method: 'POST', body: body, keepalive: true,
+                                  headers: { 'Content-Type': 'application/json' } })
+        .catch(() => {});
+    }
+  } catch (e) {}
+  return n;
+}
+// 把阶段H 的本地 track 包一层：原来的 window.__events 全部保留（测试断言靠它），
+// 额外进上报队列。业务代码一行不动。
+const trackLocal = track;
+track = function (ev, params) {
+  const rec = trackLocal(ev, params);
+  try { tmEnqueue(rec); } catch (e) {}
+  return rec;
+};
+// 切后台 / 关页面是最后的上报窗口，必须抢在进程被冻结前把队列吐出去
+try {
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) tmFlush('hide'); else track('app_resume', {});
+  });
+} catch (e) {}
+try {
+  window.addEventListener('pagehide', function () { tmFlush('pagehide'); });
+} catch (e) {}
+
+// ---------- 裂变入口：读 startapp 参数，认领邀请 ----------
+const STORE_KEY_REF = 'suikaRef';
+function myRefCode() { return TM_UID; }
+function inviteLink() { return SHARE.link + '?startapp=ref_' + encodeURIComponent(myRefCode()); }
+function readStartParam() {
+  try { if (TG && TG.initDataUnsafe && TG.initDataUnsafe.start_param) return String(TG.initDataUnsafe.start_param); } catch (e) {}
+  try {
+    if (typeof location !== 'undefined' && location.search) {
+      const m = /[?&](?:tgWebAppStartParam|startapp|ref)=([^&]+)/.exec(location.search);
+      if (m) return decodeURIComponent(m[1]);
+    }
+  } catch (e) {}
+  return '';
+}
+let refState = (function () {
+  try {
+    const raw = JSON.parse(localStorage.getItem(STORE_KEY_REF));
+    if (raw && typeof raw === 'object') return { from: raw.from || '', claimed: !!raw.claimed, sent: raw.sent | 0 };
+  } catch (e) {}
+  return { from: '', claimed: false, sent: 0 };
+})();
+function saveRef() { try { localStorage.setItem(STORE_KEY_REF, JSON.stringify(refState)); } catch (e) {} }
+function referralInit() {
+  const p = readStartParam();
+  const m = /^ref_(.{1,48})$/.exec(p || '');
+  if (!m) return false;
+  const from = m[1];
+  if (from === myRefCode() || refState.claimed) return false;   // 自己邀自己 / 已领过：静默忽略
+  refState.from = from; refState.claimed = true; saveRef();
+  earnCoins(100);
+  track('referral_in', { from: from });
+  if (typeof adToast === 'function') adToast(T('toast_invite_bonus', '好友邀请奖励 +100 金币 💰'));
+  return true;
+}
+
+// ---------- 新手引导：不挡手、不打断、两句话讲完 ----------
+// 原则：教学只在第一局出现，靠「玩家做到了」而不是「计时器到了」推进，
+// 做到即消失 —— 老玩家永远不会再看到它。
+const STORE_KEY_TUT = 'suikaTut';
+const tutEl = document.getElementById('tutHint');
+let tutStep = 0, tutDrops = 0, tutDone = (function () {
+  try { return localStorage.getItem(STORE_KEY_TUT) === '1'; } catch (e) { return false; }
+})();
+function tutSave() { try { localStorage.setItem(STORE_KEY_TUT, '1'); } catch (e) {} }
+function tutRender() {
+  if (!tutEl) return;
+  if (tutStep === 1) {
+    tutEl.innerHTML = '<b>👆 左右滑动挑位置，松手落果</b><span>越靠边越容易堆高</span>';
+    tutEl.classList.add('on');
+  } else if (tutStep === 2) {
+    tutEl.innerHTML = '<b>✨ 两颗一样的果子相撞就会合并</b><span>越合越大，目标是西瓜 🍉</span>';
+    tutEl.classList.add('on');
+  } else {
+    tutEl.classList.remove('on');
+  }
+}
+function tutStart() {
+  if (tutDone) { tutStep = 0; tutRender(); return false; }
+  tutStep = 1; tutDrops = 0; tutRender();
+  track('tutorial_show', { step: 1 });
+  return true;
+}
+function tutOnDrop() {
+  if (tutDone || tutStep === 0) return;
+  tutDrops++;
+  if (tutStep === 1) { tutStep = 2; tutRender(); track('tutorial_show', { step: 2 }); return; }
+  if (tutStep === 2 && tutDrops >= 5) tutFinish('drops');   // 一直没合上也别一直挂着
+}
+function tutOnMerge() {
+  if (tutDone || tutStep === 0) return;
+  if (tutStep >= 1) tutFinish('merge');
+}
+function tutFinish(how) {
+  if (tutDone) return;
+  tutDone = true; tutStep = 0; tutSave(); tutRender();
+  track('tutorial_done', { how: how || 'merge', drops: tutDrops });
+}
+
+// ---------- 分享卡片：本地 canvas 画一张，零素材、离线可用 ----------
+function peakLevel() {
+  let p = 0;
+  for (let i = 1; i <= 11; i++) if (seenLevels[i]) p = i;
+  for (const b of balls) if (b.level > p) p = b.level;
+  return p;
+}
+function shareTagline(sc, pk) {
+  if (pk >= 11) return '西瓜到手，这局圆满';
+  if (sc >= 3000) return '手感在线，接近西瓜了';
+  if (sc >= 1200) return '稳中带狠，来比比？';
+  if (sc >= 400) return '刚热身，你能超过我吗';
+  return '手滑了一局，等你来嘲笑';
+}
+function drawShareCard() {
+  const c = document.createElement('canvas');
+  if (!c || typeof c.getContext !== 'function') return null;
+  const W2 = SHARE.cardW, H2 = SHARE.cardH;
+  c.width = W2; c.height = H2;
+  const g = c.getContext('2d');
+  if (!g) return null;
+  const sc = score, pk = peakLevel() || 1, f = FRUITS[pk - 1];
+
+  // 背景：和游戏内同一套色，认得出是同一个产品
+  const bg = g.createLinearGradient(0, 0, W2, H2);
+  bg.addColorStop(0, '#123024'); bg.addColorStop(0.55, '#0d2a2a'); bg.addColorStop(1, '#101b2e');
+  g.fillStyle = bg; g.fillRect(0, 0, W2, H2);
+  // 果子剪影做底纹
+  for (let i = 0; i < 14; i++) {
+    const fr = FRUITS[(i * 3) % 11];
+    const x = ((i * 173) % (W2 - 120)) + 60, y = ((i * 311) % (H2 - 200)) + 100, r = 40 + (i % 5) * 26;
+    g.globalAlpha = 0.06; g.fillStyle = fr.color;
+    g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
+  }
+  g.globalAlpha = 1;
+
+  g.textAlign = 'center';
+  g.fillStyle = 'rgba(255,255,255,0.72)';
+  g.font = '600 40px system-ui,-apple-system,sans-serif';
+  g.fillText('🍉 ' + I18N.t('title'), W2 / 2, 110);
+
+  // 主视觉：本局最大果 + 光晕
+  const cy = 400;
+  const halo = g.createRadialGradient(W2 / 2, cy, 10, W2 / 2, cy, 250);
+  halo.addColorStop(0, f.color); halo.addColorStop(1, 'rgba(0,0,0,0)');
+  g.globalAlpha = 0.5; g.fillStyle = halo;
+  g.beginPath(); g.arc(W2 / 2, cy, 250, 0, Math.PI * 2); g.fill();
+  g.globalAlpha = 1;
+  g.font = '260px system-ui,-apple-system,"Apple Color Emoji",sans-serif';
+  g.textBaseline = 'middle';
+  g.fillText(f.emoji, W2 / 2, cy);
+  g.textBaseline = 'alphabetic';
+
+  // 分数：卡片上唯一的大数字，一眼可比
+  g.fillStyle = '#ffffff';
+  g.font = '800 190px system-ui,-apple-system,sans-serif';
+  g.fillText(String(sc), W2 / 2, 780);
+  g.fillStyle = 'rgba(255,255,255,0.55)';
+  g.font = '600 38px system-ui,-apple-system,sans-serif';
+  g.fillText(I18N.t('share_this_run'), W2 / 2, 830);
+
+  // 三格战绩
+  const cells = [
+    [I18N.t('final_peak'), f.name],
+    [I18N.t('final_merges_prefix'), merges + (I18N.t('final_times') ? ' ' + I18N.t('final_times') : '')],
+    [I18N.t('final_best'), String(best)]
+  ];
+  const bw = 250, gap = 26, tot = bw * 3 + gap * 2, bx = (W2 - tot) / 2, by = 880;
+  for (let i = 0; i < 3; i++) {
+    const x = bx + i * (bw + gap);
+    g.fillStyle = 'rgba(255,255,255,0.07)';
+    g.beginPath();
+    if (g.roundRect) { g.roundRect(x, by, bw, 130, 24); } else { g.rect(x, by, bw, 130); }
+    g.fill();
+    g.fillStyle = 'rgba(255,255,255,0.5)';
+    g.font = '500 30px system-ui,-apple-system,sans-serif';
+    g.fillText(cells[i][0], x + bw / 2, by + 50);
+    g.fillStyle = '#fff';
+    g.font = '700 44px system-ui,-apple-system,sans-serif';
+    g.fillText(cells[i][1], x + bw / 2, by + 104);
+  }
+
+  // 钩子文案 + 深链
+  g.fillStyle = '#ffd76a';
+  g.font = '700 46px system-ui,-apple-system,sans-serif';
+  g.fillText(shareTagline(sc, pk), W2 / 2, 1090);
+  g.fillStyle = 'rgba(255,255,255,0.42)';
+  g.font = '500 32px system-ui,-apple-system,sans-serif';
+  g.fillText(I18N.t('share_link_prefix') + SHARE.link.replace(/^https?:\/\//, ''), W2 / 2, 1150);
+  return c;
+}
+
+// ---------- 分享奖励闸门（每日首次，防刷） ----------
+const STORE_KEY_SHARE = 'suikaShare';
+let shareState = (function () {
+  try {
+    const raw = JSON.parse(localStorage.getItem(STORE_KEY_SHARE));
+    if (raw && typeof raw === 'object') return { day: raw.day || '', count: raw.count | 0, total: raw.total | 0 };
+  } catch (e) {}
+  return { day: '', count: 0, total: 0 };
+})();
+function saveShare() { try { localStorage.setItem(STORE_KEY_SHARE, JSON.stringify(shareState)); } catch (e) {} }
+function shareRollDay() {
+  const k = todayKey();
+  if (shareState.day !== k) { shareState.day = k; shareState.count = 0; saveShare(); }
+}
+function shareRewardReady() { shareRollDay(); return shareState.count === 0; }
+
+// ---------- 分享弹层 ----------
+const sharePopEl = document.getElementById('sharePop');
+const shareImgEl = document.getElementById('shareImg');
+const shareRewardEl = document.getElementById('shareReward');
+const shareGoEl = document.getElementById('shareGo');
+const shareSaveEl = document.getElementById('shareSave');
+const shareCopyEl = document.getElementById('shareCopy');
+const shareCloseEl = document.getElementById('shareClose');
+let shareOpen = false, shareDataUrl = '', shareCanvas = null;
+
+function openShare() {
+  shareCanvas = drawShareCard();
+  shareDataUrl = '';
+  if (shareCanvas && typeof shareCanvas.toDataURL === 'function') {
+    try { shareDataUrl = shareCanvas.toDataURL('image/png'); } catch (e) { shareDataUrl = ''; }
+  }
+  if (shareImgEl) {
+    if (shareDataUrl) { shareImgEl.src = shareDataUrl; shareImgEl.style.display = ''; }
+    else { shareImgEl.style.display = 'none'; }
+  }
+  if (shareRewardEl) {
+    shareRewardEl.textContent = shareRewardReady()
+      ? '今日首次分享 +' + SHARE.dailyReward + ' 金币'
+      : '今日奖励已领，分享依然有效';
+  }
+  shareOpen = true;
+  if (sharePopEl) sharePopEl.classList.add('on');
+  track('share_open', { score: score, peak: peakLevel(), rewardReady: shareRewardReady() });
+  return true;
+}
+function closeShare() {
+  shareOpen = false;
+  if (sharePopEl) sharePopEl.classList.remove('on');
+  return false;
+}
+function shareText() {
+  return I18N.t('title') + '｜我拿了 ' + score + ' 分，' + shareTagline(score, peakLevel() || 1) + '！';
+}
+// 分享奖励只认「已经真的发起了分享动作」，且每天一次
+function shareSettle(channel) {
+  shareRollDay();
+  const first = shareState.count === 0;
+  shareState.count++; shareState.total++; saveShare();
+  if (first) {
+    earnCoins(SHARE.dailyReward);
+    if (typeof adToast === 'function') adToast(I18N.t('toast_share_reward').replace('{n}', SHARE.dailyReward));
+    if (typeof hapticNotify === 'function') hapticNotify('success');
+  }
+  track('share_done', { channel: channel, rewarded: first, total: shareState.total });
+  if (shareRewardEl) shareRewardEl.textContent = I18N.t('share_shared_today');
+  return first;
+}
+function doShare() {
+  return sendShare(shareText(), inviteLink());
+}
+// 公共分享通道：TG 官方面板 → 系统分享 → 复制链接；统一结算每日首次分享奖励
+function sendShare(txt, url) {
+  track('share_click', { score: score });
+  // ① Telegram：走官方分享面板，链接一定带邀请码
+  try {
+    if (TG && typeof TG.openTelegramLink === 'function') {
+      TG.openTelegramLink('https://t.me/share/url?url=' + encodeURIComponent(url) + '&text=' + encodeURIComponent(txt));
+      shareSettle('telegram');
+      closeShare();
+      return 'telegram';
+    }
+  } catch (e) {}
+  // ② 系统分享面板（移动端浏览器）
+  try {
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      navigator.share({ title: I18N.t('title'), text: txt, url: url }).then(
+        () => shareSettle('websha'), () => {}
+      );
+      return 'websha';
+    }
+  } catch (e) {}
+  // ③ 兜底：复制链接
+  return doCopyLink(txt) ? 'clipboard' : 'none';
+}
+// 「分享游戏」：不要求本局分数、随时可点，用同一套分享通道 + 每日首分享奖励
+function gameShareText() {
+  return I18N.t('title') + '｜' + I18N.t('share_game_text');
+}
+function shareGame() {
+  return sendShare(gameShareText(), inviteLink());
+}
+function doCopyLink(txt) {
+  const s = (txt || shareText()) + ' ' + inviteLink();
+  let ok = false;
+  try {
+    if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(s); ok = true;
+    }
+  } catch (e) {}
+  if (ok) {
+    if (typeof adToast === 'function') adToast(I18N.t('toast_link_copied'));
+    shareSettle('clipboard');
+  } else if (typeof adToast === 'function') {
+    adToast(I18N.t('toast_copy_fail'));
+  }
+  return ok;
+}
+function doSaveCard() {
+  if (!shareDataUrl) { if (typeof adToast === 'function') adToast(I18N.t('toast_img_pending')); return false; }
+  try {
+    const a = document.createElement('a');
+    a.href = shareDataUrl;
+    a.download = 'suika-' + score + '.png';
+    if (typeof a.click === 'function') a.click();
+    track('share_save', { score: score });
+    if (typeof adToast === 'function') adToast(I18N.t('toast_img_saved'));
+    return true;
+  } catch (e) { return false; }
+}
+if (shareGoEl) shareGoEl.addEventListener('click', doShare);
+if (shareCloseEl) shareCloseEl.addEventListener('click', closeShare);
+if (sharePopEl) sharePopEl.addEventListener('click', e => { if (e.target === sharePopEl) closeShare(); });
+
+// ---------- 结算页「晒成绩」按钮 ----------
+const btnShareEl = document.getElementById('btnShare');
+if (btnShareEl) btnShareEl.addEventListener('click', () => { if (!gameOver) return; openShare(); });
+function onGameOverShare() {
+  if (!btnShareEl) return;
+  if (score <= 0) { btnShareEl.style.display = 'none'; return; }
+  btnShareEl.style.display = '';
+  btnShareEl.textContent = shareRewardReady() ? '📤 晒成绩 +' + SHARE.dailyReward + '💰' : '📤 晒成绩';
+}
+
+// ---------- 启动埋点 + 裂变认领 ----------
+track('app_open', {
+  ver: TELEMETRY.appVer, best: best, coins: coins,
+  tg: !!TG, w: window.innerWidth, h: window.innerHeight,
+  ref: refState.from || '', newUser: best === 0 && !tutDone,
+});
+referralInit();
+
+// ========== 阶段K · 手感打磨（combo 徽章 + 慢镜 + 金币飞入 + HUD 脉冲） ==========
+// 原则：全部追加式改造，一行都不动 doMerge/step/draw 的原有逻辑。
+// 靠三招把「合成」这个动作的爽感拉满：
+//  ① 屏幕视觉：combo 徽章从空中砸下来，越连击越大越金；
+//  ② 时间感：大果（≥8 级）出现瞬间进 slow-mo，玩家看得清「我合成了什么」；
+//  ③ 因果链：合并→金币飞进 HUD→数字跳动，一条金光把奖励串起来，视觉负债结清。
+
+// ---- 状态 ----
+const KJ = {
+  badge: null,                 // { count, life, maxLife, scale, hue }
+  coinFlies: [],               // { x, y, tx, ty, life, maxLife, val, seed }
+  hudPulse: 0,                 // 分数脉冲 0..1
+  coinPulse: 0,                // 金币脉冲 0..1
+  lastCoinsShown: coins,       // 用于探测 earnCoins 后差值
+};
+
+// ---- 目标坐标：#coinCount 在屏幕上的位置 → 逻辑坐标 ----
+function coinTargetLogical() {
+  const r = coinCountEl && coinCountEl.getBoundingClientRect ? coinCountEl.getBoundingClientRect() : null;
+  const gr = canvas.getBoundingClientRect ? canvas.getBoundingClientRect() : null;
+  if (!r || !gr || !gr.width) return { x: 40, y: GROUND + 40 };
+  const cx = (r.left + r.width / 2 - gr.left) / gr.width * W;
+  const cy = (r.top + r.height / 2 - gr.top) / gr.width * W;   // 用 W 做等比换算最稳
+  return { x: cx, y: cy };
+}
+
+function spawnCoinFly(x, y, n) {
+  if (!(n > 0)) return;
+  // 一次最多飞 8 颗，避免刷屏；数额显示在最后一颗
+  const cnt = Math.min(8, Math.max(1, Math.round(Math.log2(n + 1) + 1)));
+  const t = coinTargetLogical();
+  for (let i = 0; i < cnt; i++) {
+    KJ.coinFlies.push({
+      x: x + (Math.random() - 0.5) * 20,
+      y: y + (Math.random() - 0.5) * 12,
+      tx: t.x, ty: t.y,
+      life: 0.62 + i * 0.05, maxLife: 0.62 + i * 0.05,
+      val: (i === cnt - 1) ? n : 0,
+      seed: Math.random() * 6.28,
+    });
+  }
+}
+
+// ---- 合并瞬间的手感注入（doMerge 内部已 hook：onMergeJuice） ----
+function onMergeJuice(nx, ny, level, cmb, gain, isJackpot) {
+  // combo 徽章：≥2 就出，越大越猛
+  if (cmb >= 2) {
+    const boost = Math.min(cmb, 12);
+    KJ.badge = {
+      count: cmb,
+      life: 0.9 + boost * 0.04,
+      maxLife: 0.9 + boost * 0.04,
+      hue: cmb >= 6 ? 42 : (cmb >= 4 ? 48 : 52),
+    };
+  }
+  // 大果高光：靠 hitstop 冻帧 + flash 白闪，不用 slowmo（slowmo 会让物理子步数掉，可能穿模）。
+  // 11 级最长（西瓜是本局最高光），10 级次之，8/9 级给一点点即可。
+  if (level === 11) {
+    hitstop = Math.max(hitstop, 0.32);
+    flash = Math.max(flash, 0.45);
+  } else if (level >= 10) {
+    hitstop = Math.max(hitstop, 0.18);
+    flash = Math.max(flash, 0.35);
+  } else if (level >= 8) {
+    hitstop = Math.max(hitstop, 0.10);
+    flash = Math.max(flash, 0.28);
+  }
+  if (level >= 8) {
+    // 二段冲击环，视觉上「响得更久」
+    ring(nx, ny, lighten(FRUITS[level - 1].color, 0.4), radius(level) * 3.2);
+    burst(nx, ny, '#ffffff', 10);
+  }
+  // 3 连及以上，加一圈金光扩散
+  if (cmb >= 3) {
+    ring(nx, ny, '#ffe08a', radius(level) * 2.2);
+    burst(nx, ny, '#ffd76a', 6 + cmb);
+  }
+  // 得分越大越震（配合已有 hitstop / shake，多给一点点，但不越权）
+  if (gain >= 60) shake = Math.max(shake, 0.32);
+  if (isJackpot || level === 11) shake = Math.max(shake, 0.7);
+  // 触发 HUD 分数脉冲（比 CSS 动画更可控）
+  KJ.hudPulse = 1;
+}
+
+// ---- 分数产出金币时飞一次 ----
+const _origCheckScoreReward = typeof checkScoreReward === 'function' ? checkScoreReward : null;
+if (_origCheckScoreReward) {
+  const before = () => Math.floor(score / 50) - Math.floor(_lastScoreForCoins / 50);
+  checkScoreReward = function () {
+    const g = before();
+    _origCheckScoreReward();
+    if (g > 0) {
+      // 从上次合并点或屏幕右上（HUD 附近）向金币计数器飞
+      const b = balls.length ? balls[balls.length - 1] : null;
+      const sx = b ? b.x : (W - 46), sy = b ? b.y : (DANGER + 20);
+      spawnCoinFly(sx, sy, g);
+    }
+  };
+}
+
+// ---- 金币计数变化时也脉冲一下（签到 / 任务 / 分享领奖也能看到反馈） ----
+const _origEarnCoins = earnCoins;
+earnCoins = function (n) {
+  const before = coins;
+  _origEarnCoins(n);
+  if (coins > before) KJ.coinPulse = 1;
+};
+
+// ---- 每帧更新（不改 step，用 rAF 兜底一层） ----
+function updateJuice(dt) {
+  if (KJ.badge) { KJ.badge.life -= dt; if (KJ.badge.life <= 0) KJ.badge = null; }
+  KJ.hudPulse = Math.max(0, KJ.hudPulse - dt * 3);
+  KJ.coinPulse = Math.max(0, KJ.coinPulse - dt * 3);
+  const arr = KJ.coinFlies;
+  for (let i = arr.length - 1; i >= 0; i--) {
+    const c = arr[i];
+    c.life -= dt;
+    if (c.life <= 0) { arr.splice(i, 1); continue; }
+    const t = 1 - (c.life / c.maxLife);
+    // 二次贝塞尔弧线 + 侧向摆动，视觉上像金币在跳
+    const ct = Math.sin(c.seed + t * 6) * 6 * (1 - t);
+    c.x = c.x + (c.tx - c.x) * (dt * 4.6 + 0.02);
+    c.y = c.y + (c.ty - c.y) * (dt * 4.6 + 0.02) - 40 * dt * (1 - t) + ct * dt;
+  }
+}
+
+function drawJuice() {
+  // combo 徽章
+  if (KJ.badge) {
+    const b = KJ.badge;
+    const p = 1 - b.life / b.maxLife;
+    // 弹性缩放：0.2 -> 1.15 -> 1.0
+    const s = p < 0.18 ? 0.2 + p / 0.18 * 0.95 : (p < 0.34 ? 1.15 - (p - 0.18) / 0.16 * 0.15 : 1.0);
+    const alpha = p > 0.75 ? Math.max(0, 1 - (p - 0.75) / 0.25) : 1;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(W / 2, 118);
+    ctx.scale(s, s);
+    // 光晕
+    const glow = ctx.createRadialGradient(0, 0, 4, 0, 0, 90);
+    glow.addColorStop(0, `hsla(${b.hue},100%,70%,0.85)`);
+    glow.addColorStop(1, `hsla(${b.hue},100%,50%,0)`);
+    ctx.fillStyle = glow;
+    ctx.beginPath(); ctx.arc(0, 0, 90, 0, Math.PI * 2); ctx.fill();
+    // 主体文字
+    ctx.fillStyle = `hsl(${b.hue},100%,88%)`;
+    ctx.font = 'bold 22px "PingFang SC",sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('COMBO', 0, -14);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold ' + (44 + Math.min(b.count, 10) * 2) + 'px "PingFang SC",sans-serif';
+    ctx.shadowColor = `hsla(${b.hue},100%,60%,0.8)`; ctx.shadowBlur = 12;
+    ctx.fillText('×' + b.count, 0, 18);
+    ctx.restore();
+  }
+  // 金币飞入
+  for (const c of KJ.coinFlies) {
+    ctx.save();
+    const a = Math.min(1, c.life / c.maxLife * 1.5);
+    ctx.globalAlpha = a;
+    // 金光尾巴
+    ctx.fillStyle = 'rgba(255,224,138,0.35)';
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, 10, 0, Math.PI * 2); ctx.fill();
+    // 硬币本体
+    const gd = ctx.createRadialGradient(c.x - 2, c.y - 2, 1, c.x, c.y, 8);
+    gd.addColorStop(0, '#fff6c9'); gd.addColorStop(0.6, '#ffd54a'); gd.addColorStop(1, '#c98a1a');
+    ctx.fillStyle = gd;
+    ctx.beginPath(); ctx.arc(c.x, c.y, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(120,70,10,0.6)'; ctx.lineWidth = 1;
+    ctx.stroke();
+    // 数额标签
+    if (c.val > 0) {
+      ctx.fillStyle = '#ffe08a';
+      ctx.font = 'bold 14px "PingFang SC",sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('+' + c.val, c.x, c.y - 14);
+    }
+    ctx.restore();
+  }
+}
+
+// ---- HUD 脉冲：给 #score 和 #coinCount 加临时 CSS 类 ----
+function applyHudPulse() {
+  if (KJ.hudPulse > 0.85) { scoreEl.classList.add('pulse'); }
+  else if (KJ.hudPulse <= 0) scoreEl.classList.remove('pulse');
+  if (KJ.coinPulse > 0.85) coinCountEl.classList.add('pulse');
+  else if (KJ.coinPulse <= 0) coinCountEl.classList.remove('pulse');
+}
+
+// ---- 挂载：包一层 draw / step，不改核心 ----
+const _origDraw = draw;
+draw = function () { _origDraw(); drawJuice(); applyHudPulse(); };
+const _origStep = step;
+step = function (dt) { _origStep(dt); updateJuice(dt || (1 / 120)); };
+
+// ========== 阶段L · 成就徽章 + 本地排行榜 ==========
+// 全部追加式：不动 gameOverNow / restart 主逻辑，靠事件钩子驱动。
+// 成就系统给玩家「里程碑」，排行榜给「个人历史证明」，配合就是深留存杠杆。
+
+const ACHIEVEMENTS = [
+  { id: 'first_merge',  zh: '第一次合成',     en: 'First Merge',        desc_zh: '完成 1 次合并',   desc_en: 'Merge once',              check: s => s.totalMerges >= 1,   reward: 10 },
+  { id: 'first_melon',  zh: '第一颗西瓜',     en: 'First Melon',        desc_zh: '合出 11 级西瓜',   desc_en: 'Craft the watermelon',    check: s => s.peakLevel >= 11,    reward: 100 },
+  { id: 'combo_5',      zh: '五连合',         en: 'Combo x5',           desc_zh: '单局 5 连合',      desc_en: '5 combo in one run',      check: s => s.peakCombo >= 5,     reward: 30 },
+  { id: 'combo_8',      zh: '八连合',         en: 'Combo x8',           desc_zh: '单局 8 连合',      desc_en: '8 combo in one run',      check: s => s.peakCombo >= 8,     reward: 60 },
+  { id: 'score_2000',   zh: '两千分',         en: '2000 Points',        desc_zh: '单局 ≥ 2000 分',   desc_en: 'Score ≥ 2000 in one run', check: s => s.bestScore >= 2000,  reward: 30 },
+  { id: 'score_5000',   zh: '五千分',         en: '5000 Points',        desc_zh: '单局 ≥ 5000 分',   desc_en: 'Score ≥ 5000 in one run', check: s => s.bestScore >= 5000,  reward: 80 },
+  { id: 'score_10000',  zh: '一万分',         en: '10000 Points',       desc_zh: '单局 ≥ 10000 分',  desc_en: 'Score ≥ 10000',           check: s => s.bestScore >= 10000, reward: 200 },
+  { id: 'merges_100',   zh: '合成百人',       en: '100 Merges',         desc_zh: '累计合成 100 次',  desc_en: '100 total merges',        check: s => s.totalMerges >= 100, reward: 40 },
+  { id: 'runs_10',      zh: '常客',           en: 'Regular',            desc_zh: '玩满 10 局',       desc_en: '10 runs played',          check: s => s.totalRuns >= 10,    reward: 30 },
+  { id: 'share_1',      zh: '首次分享',       en: 'First Share',        desc_zh: '分享 1 次',        desc_en: 'Share once',              check: s => s.shareCount >= 1,    reward: 20 },
+  { id: 'signin_7',     zh: '一周签到',       en: '7 Day Streak',       desc_zh: '连续签到 7 天',    desc_en: 'Sign in 7 days',          check: s => s.signinStreak >= 7,  reward: 80 },
+  { id: 'no_undo',      zh: '硬核',           en: 'Hardcore',           desc_zh: '不用道具攒 3000 分', desc_en: '3000 pts w/o items',    check: s => s.noItemBest >= 3000, reward: 60 },
+];
+
+const ACH_KEY = 'suikaAch';
+const LB_KEY = 'suikaLB';
+const STATS_KEY = 'suikaStats';
+
+let achUnlocked = (function () {
+  try { return JSON.parse(localStorage.getItem(ACH_KEY)) || {}; } catch (e) { return {}; }
+})();
+let stats = (function () {
+  try {
+    const raw = JSON.parse(localStorage.getItem(STATS_KEY)) || {};
+    return {
+      totalMerges: raw.totalMerges | 0,
+      totalRuns: raw.totalRuns | 0,
+      peakLevel: raw.peakLevel | 0,
+      peakCombo: raw.peakCombo | 0,
+      bestScore: raw.bestScore | 0,
+      shareCount: raw.shareCount | 0,
+      signinStreak: raw.signinStreak | 0,
+      noItemBest: raw.noItemBest | 0,
+    };
+  } catch (e) {
+    return { totalMerges: 0, totalRuns: 0, peakLevel: 0, peakCombo: 0, bestScore: 0, shareCount: 0, signinStreak: 0, noItemBest: 0 };
+  }
+})();
+let leaderboard = (function () {
+  try {
+    const raw = JSON.parse(localStorage.getItem(LB_KEY));
+    if (Array.isArray(raw)) return raw.filter(r => r && typeof r.score === 'number').slice(0, 10);
+  } catch (e) {}
+  return [];
+})();
+
+function saveAch() { try { localStorage.setItem(ACH_KEY, JSON.stringify(achUnlocked)); } catch (e) {} }
+function saveStats() { try { localStorage.setItem(STATS_KEY, JSON.stringify(stats)); } catch (e) {} }
+function saveLB() { try { localStorage.setItem(LB_KEY, JSON.stringify(leaderboard)); } catch (e) {} }
+
+// 检查是否有新解锁的成就（返回新解锁的成就列表）
+// 奖励模式：合并瞬间解锁的成就先记在"待结算金币"里，局末统一发（避免打乱"分数→金币"节奏）；
+// 局末结算时的成就直接发。
+let _pendingAchCoins = 0;
+function checkAchievements(payNow) {
+  const newly = [];
+  for (const a of ACHIEVEMENTS) {
+    if (achUnlocked[a.id]) continue;
+    if (a.check(stats)) {
+      achUnlocked[a.id] = { at: Date.now() };
+      newly.push(a);
+    }
+  }
+  if (newly.length) {
+    saveAch();
+    let totalReward = 0;
+    for (const a of newly) totalReward += a.reward;
+    if (totalReward > 0) {
+      if (payNow) earnCoins(totalReward);
+      else _pendingAchCoins += totalReward;
+    }
+    for (const a of newly) {
+      queueAchToast(a);
+      if (typeof track === 'function') track('ach_unlock', { id: a.id, reward: a.reward });
+    }
+  }
+  return newly;
+}
+
+// 成就 Toast 队列（1.6s/个，屏幕右上滑入）
+const _achToastQueue = [];
+let _achToastActive = null;
+function queueAchToast(a) {
+  _achToastQueue.push({ a, life: 2.2, maxLife: 2.2, tIn: 0.35 });
+}
+
+function updateAchToast(dt) {
+  if (!_achToastActive && _achToastQueue.length) {
+    _achToastActive = _achToastQueue.shift();
+  }
+  if (_achToastActive) {
+    _achToastActive.life -= dt;
+    if (_achToastActive.life <= 0) _achToastActive = null;
+  }
+}
+
+function drawAchToast() {
+  if (!_achToastActive) return;
+  const t = _achToastActive;
+  const p = 1 - t.life / t.maxLife;
+  const slideIn = p < 0.12 ? p / 0.12 : 1;
+  const fadeOut = p > 0.85 ? Math.max(0, 1 - (p - 0.85) / 0.15) : 1;
+  const alpha = slideIn * fadeOut;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  const w = 240, h = 62;
+  const x = W - w - 12, y = 60 + (1 - slideIn) * 20;
+  // 卡片背景
+  ctx.fillStyle = 'rgba(20,20,30,0.86)';
+  ctx.strokeStyle = '#ffd76a';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  const r = 12;
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+  ctx.fill(); ctx.stroke();
+  // 徽章图标（金色圆）
+  const bx = x + 22, by = y + h / 2;
+  const gd = ctx.createRadialGradient(bx - 4, by - 4, 2, bx, by, 18);
+  gd.addColorStop(0, '#fff6c9'); gd.addColorStop(0.7, '#ffd54a'); gd.addColorStop(1, '#c98a1a');
+  ctx.fillStyle = gd;
+  ctx.beginPath(); ctx.arc(bx, by, 16, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#7a4a10'; ctx.font = 'bold 18px "PingFang SC",sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('★', bx, by + 1);
+  // 文字
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#ffe08a'; ctx.font = 'bold 13px "PingFang SC",sans-serif';
+  ctx.fillText(I18N.t('ach_unlocked'), x + 46, y + 22);
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 15px "PingFang SC",sans-serif';
+  const title = I18N.lang === 'en' ? t.a.en : t.a.zh;
+  ctx.fillText(title + '  +' + t.a.reward + '💰', x + 46, y + 44);
+  ctx.restore();
+}
+
+// 排行榜写入
+function pushLeaderboard(entry) {
+  leaderboard.push({
+    score: entry.score | 0,
+    merges: entry.merges | 0,
+    peak: entry.peak | 0,
+    ts: Date.now(),
+  });
+  leaderboard.sort((a, b) => b.score - a.score);
+  leaderboard = leaderboard.slice(0, 10);
+  saveLB();
+}
+
+// 局末统计钩子：在 gameOverNow 之后调用
+function onGameOverStats(finalScore, finalMerges, peak, usedItem) {
+  stats.totalRuns++;
+  stats.totalMerges += finalMerges;
+  if (peak > stats.peakLevel) stats.peakLevel = peak;
+  if (finalScore > stats.bestScore) stats.bestScore = finalScore;
+  if (!usedItem && finalScore > stats.noItemBest) stats.noItemBest = finalScore;
+  saveStats();
+  pushLeaderboard({ score: finalScore, merges: finalMerges, peak: peak });
+  checkAchievements(true);   // 结算时直接发奖
+  // 把局内累计的成就奖一次性发出
+  if (_pendingAchCoins > 0) {
+    earnCoins(_pendingAchCoins);
+    _pendingAchCoins = 0;
+  }
+}
+
+// combo 记录钩子（每次 doMerge 时会给 cmb，最大 cmb 记录到 stats）
+const _origOnMergeJuice = onMergeJuice;
+onMergeJuice = function (nx, ny, level, cmb, gain, isJackpot) {
+  _origOnMergeJuice(nx, ny, level, cmb, gain, isJackpot);
+  if (cmb > stats.peakCombo) { stats.peakCombo = cmb; saveStats(); }
+  checkAchievements();
+};
+
+// 使用道具时打标记（防"硬核"成就作弊）
+let _usedItemThisRun = false;
+if (typeof useUndo === 'function') {
+  const _origUseUndo = useUndo;
+  useUndo = function () { _usedItemThisRun = true; return _origUseUndo(); };
+}
+if (typeof useSwap === 'function') {
+  const _origUseSwap = useSwap;
+  useSwap = function () { _usedItemThisRun = true; return _origUseSwap(); };
+}
+if (typeof armBomb === 'function') {
+  const _origArmBomb = armBomb;
+  armBomb = function () { _usedItemThisRun = true; return _origArmBomb(); };
+}
+
+// 包 gameOverNow：加统计与成就
+const _origGameOverNow = gameOverNow;
+gameOverNow = function () {
+  const scoreBefore = score;
+  const mergesBefore = merges;
+  let peak = 0;
+  for (let i = 1; i <= 11; i++) if (seenLevels[i]) peak = i;
+  for (const b of balls) if (b.level > peak) peak = b.level;
+  _origGameOverNow();
+  onGameOverStats(scoreBefore, mergesBefore, peak, _usedItemThisRun);
+};
+
+// 包 restart：重置本局道具标记
+const _origRestartLMN = restart;
+restart = function () { _usedItemThisRun = false; _origRestartLMN(); };
+
+// 分享钩子：记录分享次数
+if (typeof doShare === 'function') {
+  const _origDoShare = doShare;
+  doShare = function () {
+    const r = _origDoShare();
+    // r 可能是 Promise 或同步返回。同步部分先记数，异步则挂 then。
+    const bump = () => { stats.shareCount++; saveStats(); checkAchievements(); };
+    if (r && typeof r.then === 'function') { r.then(bump, () => {}); }
+    else { bump(); }
+    return r;
+  };
+}
+// 分享游戏（启动页/结算页菜单）同样计入「首次分享」成就
+if (typeof shareGame === 'function') {
+  const _origShareGame = shareGame;
+  shareGame = function () {
+    const r = _origShareGame();
+    const bump = () => { stats.shareCount++; saveStats(); checkAchievements(); };
+    if (r && typeof r.then === 'function') { r.then(bump, () => {}); }
+    else { bump(); }
+    return r;
+  };
+}
+// 签到钩子：追踪连续签到天数
+if (typeof claimDaily === 'function') {
+  const _origClaimDaily = claimDaily;
+  claimDaily = function () {
+    const r = _origClaimDaily();
+    try {
+      const s = JSON.parse(localStorage.getItem('suikaSignin') || '{}');
+      if (s && s.streak && s.streak > stats.signinStreak) { stats.signinStreak = s.streak; saveStats(); }
+    } catch (e) {}
+    checkAchievements();
+    return r;
+  };
+}
+
+// ========== 阶段M · 多语言（中/英） + 客户端反作弊签名 ==========
+// i18n：只覆盖 UI 文本 & Splash & Toast；游戏内 emoji 与数字通用。
+// 签名：分数/金币写入 localStorage 前用简易 HMAC-like 签名，读取时校验，篡改则重置。
+
+const I18N = {
+  lang: (function () {
+    try {
+      const s = localStorage.getItem('suikaLang');
+      if (s === 'zh' || s === 'en') return s;
+    } catch (e) {}
+    return (navigator.language || 'zh').toLowerCase().indexOf('en') === 0 ? 'en' : 'zh';
+  })(),
+  dict: {
+    zh: {
+      title: '合成大西瓜',
+      subtitle: '合并相同水果 · 解锁西瓜',
+      tap_to_start: '点击开始',
+      score: '分数', best: '最佳', coins: '金币', combo: '连击',
+      restart: '再来一局', game_over: '本局结束', new_record: '新纪录！',
+      ach_unlocked: '🏆 成就解锁',
+      lang_toggle: 'EN',
+      leaderboard: '排行榜', achievements: '成就',
+      no_records: '还没有记录，去玩一把！',
+      share_btn: '📤 晒成绩', share_bonus: ' +30💰',
+      share_shared: '已分享 · 今日奖励已领',
+      offline_recall: '明天再来，登录送 20💰',
+      lang_switched: '已切换到中文',
+      no_ach: '还没解锁成就',
+      ach_progress: '进度 ',
+      menu_signin: '📅 签到', menu_tasks: '🎯 任务', menu_skins: '🎨 皮肤',
+      hud_score: '得分', hud_next: '下一个', hud_best: '最高',
+      final_merges_prefix: '合成', final_times: '次',
+      final_peak: '最大果', final_best: '最高纪录', run_coins_prefix: '本局金币',
+      splash_best_prefix: '最高纪录: ',
+      danger_line: '⚠ 警戒线',
+      banner_new_record: '🏆 新纪录!',
+      popup_new_record: '刷新纪录!',
+      remain_fmt: '距纪录还差 {n} 分',
+      share_this_run: '本局得分',
+      combo_popup: '连击 ×',
+      golden_five: '✨ 金果 ×5!',
+      newly_unlocked: '新解锁',
+      close_call: '好险!',
+      undo_popup: '↩️ 撤销',
+      swap_popup: '🔀 换果',
+      x2_btn_fmt: '📺 金币 ×2（+{n}💰）',
+      sheet_checkin: '每日签到',
+      sheet_quest: '每日任务',
+      sheet_skin: '皮肤',
+      share_link_prefix: '点链接接受挑战 · ',
+      share_shared_today: '已分享 · 今日奖励已领',
+      first_unlock_prefix: '首次! ',
+      jackpot_banner: '✨ JACKPOT ✨',
+      watermelon_banner: '🍉 大西瓜!',
+      revive_banner: '❤️ 复活！',
+      toast_x2: '金币 ×2 到账 +{n}💰',
+      toast_not_enough: '金币不够，先攒分数吧',
+      toast_unlock_skin: '已解锁 {t}',
+      toast_checkin_ok: '签到成功 {t}',
+      toast_double_ok: '奖励翻倍 {t}',
+      toast_quest_bonus: '🎁 全清宝箱 +{n} 💰',
+      toast_invite_bonus: '好友邀请奖励 +100 金币 💰',
+      toast_share_reward: '分享奖励 +{n} 金币 💰',
+      toast_link_copied: '链接已复制，发给好友即可',
+      toast_copy_fail: '复制失败，可长按上方图片保存',
+      toast_img_pending: '图片还没画好，稍等一下',
+      toast_img_saved: '图片已保存到下载目录',
+      revive_btn: '📺 看广告复活',
+      x2_btn_static: '📺 金币 ×2',
+      hint_key_press: '按',
+      hint_key_or: '或',
+      hint_key_enter: '回车',
+      hint_key_restart: '立即重开',
+      ad_tag: 'AD · 赞助内容',
+      ad_playing: '广告播放中…',
+      shop_close: '暂不需要',
+      shop_buy_fmt: '💰 {n} 金币购买',
+      shop_buy_default: '💰 60 金币购买',
+      shop_ad_btn: '📺 看广告免费得 1 个',
+      share_title: '📤 晒一局成绩',
+      share_reward_hint: '今日首次分享 +30 金币',
+      share_go: '分享给好友',
+      share_save: '保存图片',
+      share_copy: '复制链接',
+      share_close: '关闭',
+      bomb_hint: '💣 点选一个果子将其炸掉',
+      item_name_undo: '撤销',
+      item_name_bomb: '炸弹',
+      item_name_swap: '换果',
+      item_desc_undo: '撤销上一次落果，手滑能拉回来',
+      item_desc_bomb: '点掉任意一颗果子，堆高时救场',
+      item_desc_swap: '重掷预备果，换掉不想要的',
+      menu_shop: '🛒 商店',
+      menu_share: '📤 分享',
+      share_game_text: '一起来合成大西瓜，猜你先合出几颗西瓜？',
+      sheet_shop: '商店',
+      shop_owned: '拥有 {n}',
+      shop_foot: '道具在对局中使用 · 金币来自得分 / 签到 / 任务 / 分享',
+    },
+    en: {
+      title: 'Merge Melon',
+      subtitle: 'Merge fruits · unlock the watermelon',
+      tap_to_start: 'Tap to start',
+      score: 'Score', best: 'Best', coins: 'Coins', combo: 'Combo',
+      restart: 'Play again', game_over: 'Round over', new_record: 'New record!',
+      ach_unlocked: '🏆 Achievement',
+      lang_toggle: '中',
+      leaderboard: 'Leaderboard', achievements: 'Achievements',
+      no_records: 'No records yet — go play!',
+      share_btn: '📤 Share', share_bonus: ' +30💰',
+      share_shared: 'Shared · reward claimed',
+      offline_recall: 'Come back tomorrow for +20💰',
+      lang_switched: 'Switched to English',
+      no_ach: 'No achievements yet',
+      ach_progress: 'Progress ',
+      menu_signin: '📅 Sign in', menu_tasks: '🎯 Tasks', menu_skins: '🎨 Skins',
+      hud_score: 'Score', hud_next: 'Next', hud_best: 'Best',
+      final_merges_prefix: 'Merges', final_times: '',
+      final_peak: 'Biggest', final_best: 'Best', run_coins_prefix: 'Round coins',
+      splash_best_prefix: 'Best: ',
+      danger_line: '⚠ Danger',
+      banner_new_record: '🏆 New record!',
+      popup_new_record: 'Record broken!',
+      remain_fmt: '{n} pts to record',
+      share_this_run: 'This round',
+      combo_popup: 'Combo ×',
+      golden_five: '✨ Golden ×5!',
+      newly_unlocked: 'Unlocked',
+      close_call: 'Close call!',
+      undo_popup: '↩️ Undo',
+      swap_popup: '🔀 Swap',
+      x2_btn_fmt: '📺 Coins ×2 (+{n}💰)',
+      sheet_checkin: 'Daily check-in',
+      sheet_quest: 'Daily tasks',
+      sheet_skin: 'Skins',
+      share_link_prefix: 'Tap link to challenge · ',
+      share_shared_today: 'Shared · reward claimed',
+      first_unlock_prefix: 'First! ',
+      jackpot_banner: '✨ JACKPOT ✨',
+      watermelon_banner: '🍉 Watermelon!',
+      revive_banner: '❤️ Revived!',
+      toast_x2: 'Coins ×2 +{n}💰',
+      toast_not_enough: 'Not enough coins — score more first',
+      toast_unlock_skin: 'Unlocked {t}',
+      toast_checkin_ok: 'Check-in done {t}',
+      toast_double_ok: 'Reward doubled {t}',
+      toast_quest_bonus: '🎁 All-clear bonus +{n} 💰',
+      toast_invite_bonus: 'Invite bonus +100 💰',
+      toast_share_reward: 'Share reward +{n} 💰',
+      toast_link_copied: 'Link copied — send it to friends',
+      toast_copy_fail: 'Copy failed — long-press image to save',
+      toast_img_pending: 'Image not ready yet',
+      toast_img_saved: 'Image saved to downloads',
+      revive_btn: '📺 Watch ad to revive',
+      x2_btn_static: '📺 Coins ×2',
+      hint_key_press: 'Press',
+      hint_key_or: 'or',
+      hint_key_enter: 'Enter',
+      hint_key_restart: 'to restart',
+      ad_tag: 'AD · Sponsored',
+      ad_playing: 'Playing ad…',
+      shop_close: 'Not now',
+      shop_buy_fmt: '💰 {n} coins',
+      shop_buy_default: '💰 60 coins',
+      shop_ad_btn: '📺 Watch ad for one free',
+      share_title: '📤 Share this run',
+      share_reward_hint: 'First share today +30 coins',
+      share_go: 'Share',
+      share_save: 'Save image',
+      share_copy: 'Copy link',
+      share_close: 'Close',
+      bomb_hint: '💣 Tap a fruit to blow it up',
+      item_name_undo: 'Undo',
+      item_name_bomb: 'Bomb',
+      item_name_swap: 'Swap',
+      item_desc_undo: 'Undo the last drop — save a fumble',
+      item_desc_bomb: 'Blow up any fruit — clutch save',
+      item_desc_swap: 'Reroll the next fruit',
+      menu_shop: '🛒 Shop',
+      menu_share: '📤 Share',
+      share_game_text: 'Come play Merge Melon — how many can you chain?',
+      sheet_shop: 'Shop',
+      shop_owned: 'Owned {n}',
+      shop_foot: 'Items are used in a run · Coins come from scores, check-ins, tasks & shares',
+    }
+  },
+  t(k) {
+    const cur = this.dict[this.lang];
+    if (cur && Object.prototype.hasOwnProperty.call(cur, k)) return cur[k];
+    if (Object.prototype.hasOwnProperty.call(this.dict.zh, k)) return this.dict.zh[k];
+    return k;
+  },
+  setLang(l) {
+    if (l !== 'zh' && l !== 'en') return;
+    this.lang = l;
+    try { localStorage.setItem('suikaLang', l); } catch (e) {}
+    applyI18n();
+    if (typeof track === 'function') track('lang_switch', { to: l });
+  },
+  toggle() { this.setLang(this.lang === 'zh' ? 'en' : 'zh'); }
+};
+
+// 把界面上的关键文本节点批量替换
+function applyI18n() {
+  // Splash 标题 & tap
+  const splashH1 = document.querySelector('#splash h1');
+  const splashTap = document.querySelector('#splash .tap');
+  const splashSub = document.querySelector('#splash .sub');
+  if (splashH1) {
+    splashH1.textContent = I18N.t('title');
+    // 自适应：英文标题较长时缩字号，避免溢出
+    splashH1.style.fontSize = '';
+    setTimeout(() => {
+      if (!splashH1.parentElement) return;
+      const parentW = splashH1.parentElement.clientWidth || 320;
+      let size = parseFloat(getComputedStyle(splashH1).fontSize) || 40;
+      let guard = 0;
+      while (splashH1.scrollWidth > parentW - 12 && size > 22 && guard++ < 20) {
+        size -= 2;
+        splashH1.style.fontSize = size + 'px';
+      }
+    }, 0);
+  }
+  if (splashTap) splashTap.textContent = I18N.t('tap_to_start');
+  if (splashSub) splashSub.textContent = I18N.t('subtitle');
+  // Splash 菜单按钮（签到 / 任务 / 皮肤）
+  const menuBtns = document.querySelectorAll('#splash .menuBtn');
+  const menuKeys = ['menu_signin', 'menu_tasks', 'menu_skins', 'menu_shop', 'menu_share'];
+  menuBtns.forEach((b, i) => { if (menuKeys[i]) b.textContent = I18N.t(menuKeys[i]); });
+  // Overlay 标题
+  const overH2 = document.querySelector('#overlay h2');
+  if (overH2) overH2.textContent = '💥 ' + I18N.t('game_over');
+  // Restart 按钮
+  const restart = document.getElementById('restart');
+  if (restart) restart.textContent = I18N.t('restart');
+  // 新纪录标签
+  const newRec = document.getElementById('newRec');
+  if (newRec) newRec.textContent = '🎉 ' + I18N.t('new_record');
+  // 语言切换按钮
+  const langBtn = document.getElementById('langBtn');
+  if (langBtn) langBtn.textContent = I18N.t('lang_toggle');
+  // 成就按钮
+  const achBtn = document.getElementById('achLBBtn');
+  if (achBtn) achBtn.textContent = '🏆 ' + I18N.t('achievements');
+  // 分享按钮
+  const sb = document.getElementById('btnShare');
+  if (sb) {
+    const claimed = (function () {
+      try {
+        const raw = JSON.parse(localStorage.getItem('suikaShare') || '{}');
+        const today = new Date().toISOString().slice(0, 10);
+        return raw && raw.date === today && raw.claimed;
+      } catch (e) { return false; }
+    })();
+    sb.textContent = claimed ? I18N.t('share_shared') : (I18N.t('share_btn') + I18N.t('share_bonus'));
+  }
+  // 离线召回提示
+  const recall = document.getElementById('recallHint');
+  if (recall) recall.textContent = I18N.t('offline_recall');
+  // 面板 tab 文字
+  const tabAchSpan = document.querySelector('#tabAch span[data-i18n="achievements"]');
+  if (tabAchSpan) tabAchSpan.textContent = I18N.t('achievements');
+  const tabLBSpan = document.querySelector('#tabLB span[data-i18n="leaderboard"]');
+  if (tabLBSpan) tabLBSpan.textContent = I18N.t('leaderboard');
+  // 通用 data-i18n 兜底：HUD/面板等静态标签
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    // 跳过 tab 里含有 emoji 前缀已单独处理的 span
+    if (el === tabAchSpan || el === tabLBSpan) return;
+    const key = el.getAttribute('data-i18n');
+    if (key) el.textContent = I18N.t(key);
+  });
+}
+
+// ---- 反作弊签名 ----
+// 简单 HMAC-like：sha1-ish 混合（纯 JS，抵御 devtools 手改 localStorage）
+function _sig(payload) {
+  const key = 'sK-2026-mo';
+  let h1 = 0, h2 = 0;
+  const s = key + '|' + payload + '|' + key;
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    h1 = ((h1 << 5) - h1 + c) | 0;
+    h2 = ((h2 * 31) ^ c) | 0;
+  }
+  return (h1 >>> 0).toString(36) + '-' + (h2 >>> 0).toString(36);
+}
+
+function signedSet(key, val) {
+  try {
+    const payload = JSON.stringify(val);
+    localStorage.setItem(key, payload);
+    localStorage.setItem(key + '_sig', _sig(payload));
+  } catch (e) {}
+}
+function signedGet(key, defVal) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw == null) return defVal;
+    const sig = localStorage.getItem(key + '_sig');
+    if (sig !== _sig(raw)) {
+      // 签名不匹配 → 复位（防外部手改）
+      localStorage.removeItem(key);
+      localStorage.removeItem(key + '_sig');
+      if (typeof track === 'function') track('cheat_detected', { key: key });
+      return defVal;
+    }
+    return JSON.parse(raw);
+  } catch (e) { return defVal; }
+}
+
+// 迁移：把已经存在的 best/coins/stats/lb 都补上签名
+(function migrateSigs() {
+  const keys = ['suikaBest', STORE_KEY_COINS, STATS_KEY, LB_KEY, ACH_KEY];
+  for (const k of keys) {
+    try {
+      const raw = localStorage.getItem(k);
+      if (raw != null && localStorage.getItem(k + '_sig') == null) {
+        localStorage.setItem(k + '_sig', _sig(raw));
+      }
+    } catch (e) {}
+  }
+})();
+
+// 包 saveWallet：加签名
+if (typeof saveWallet === 'function') {
+  const _origSaveWallet = saveWallet;
+  saveWallet = function () {
+    _origSaveWallet();
+    try { localStorage.setItem(STORE_KEY_COINS + '_sig', _sig(String(coins))); } catch (e) {}
+  };
+}
+// 包 gameOverNow：给 best 加签名
+const _origGameOverNow_sig = gameOverNow;
+gameOverNow = function () {
+  _origGameOverNow_sig();
+  try {
+    const b = String(best);
+    localStorage.setItem('suikaBest_sig', _sig(b));
+  } catch (e) {}
+};
+// 校验读入的 coins（启动时）：若被改则回退到 0
+(function checkCoinsIntegrity() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY_COINS);
+    const sig = localStorage.getItem(STORE_KEY_COINS + '_sig');
+    if (raw != null && sig != null && sig !== _sig(raw)) {
+      coins = 0; localStorage.setItem(STORE_KEY_COINS, '0'); localStorage.setItem(STORE_KEY_COINS + '_sig', _sig('0'));
+      if (typeof track === 'function') track('cheat_detected', { key: 'coins' });
+      if (typeof updateItemBar === 'function') updateItemBar();
+    }
+  } catch (e) {}
+})();
+
+// ========== 阶段N · 离线召回 + 语言切换按钮 + 排行/成就面板 ==========
+// 加一个"语言切换"浮钮和一个"成就/排行榜"面板（overlay 结算界面里）。
+
+function ensureLangBtn() {
+  if (document.getElementById('langBtn')) return;
+  const btn = document.createElement('button');
+  btn.id = 'langBtn';
+  btn.style.cssText = 'position:fixed;top:calc(env(safe-area-inset-top,8px) + 6px);left:16px;width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.1);color:#e8e2f4;font-size:13px;line-height:36px;text-align:center;cursor:pointer;z-index:20;font-weight:bold;';
+  btn.textContent = I18N.t('lang_toggle');
+  btn.addEventListener('click', () => { I18N.toggle(); });
+  document.body.appendChild(btn);
+}
+ensureLangBtn();
+
+// 结算面板：加一个"成就 / 排行榜"入口
+function ensureAchLBPanel() {
+  if (document.getElementById('achLBBtn')) return;
+  const btn = document.createElement('button');
+  btn.id = 'achLBBtn';
+  btn.style.cssText = 'display:inline-block;margin-top:12px;margin-right:8px;padding:10px 16px;border-radius:20px;background:rgba(255,215,120,0.15);border:1px solid rgba(255,215,120,0.4);color:#ffe08a;font-size:14px;font-weight:bold;cursor:pointer;';
+  btn.textContent = '🏆 ' + I18N.t('achievements');
+  btn.addEventListener('click', openAchLB);
+  const restartBtn = document.getElementById('restart');
+  if (restartBtn && restartBtn.parentNode) restartBtn.parentNode.insertBefore(btn, restartBtn);
+
+  const panel = document.createElement('div');
+  panel.id = 'achLBPanel';
+  panel.style.cssText = 'display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.85);align-items:center;justify-content:center;padding:20px;';
+  panel.innerHTML = `
+    <div style="max-width:360px;width:100%;max-height:80vh;display:flex;flex-direction:column;background:#1a1a28;border-radius:16px;padding:20px;color:#e8e2f4;font-family:'PingFang SC',sans-serif;">
+      <div style="display:flex;gap:12px;margin-bottom:12px;justify-content:center;">
+        <button id="tabAch" class="tab-active" style="flex:1;padding:8px 12px;border-radius:8px;background:#ffd76a;color:#3a2810;border:none;font-weight:bold;cursor:pointer;">🏆 <span data-i18n="achievements">${I18N.t('achievements')}</span></button>
+        <button id="tabLB" style="flex:1;padding:8px 12px;border-radius:8px;background:rgba(255,255,255,0.08);color:#e8e2f4;border:none;cursor:pointer;">📊 <span data-i18n="leaderboard">${I18N.t('leaderboard')}</span></button>
+      </div>
+      <div id="achScroll" style="flex:1;min-height:0;overflow:auto;">
+        <div id="achList"></div>
+        <div id="lbList" style="display:none;"></div>
+      </div>
+      <button id="achClose" style="margin-top:12px;width:100%;padding:11px;border-radius:10px;background:rgba(255,255,255,0.10);color:#efe9ff;border:1px solid rgba(255,255,255,0.18);cursor:pointer;font-size:14px;font-weight:800;letter-spacing:1px;">✕</button>
+    </div>
+  `;
+  document.body.appendChild(panel);
+  document.getElementById('tabAch').addEventListener('click', () => showAchTab('ach'));
+  document.getElementById('tabLB').addEventListener('click', () => showAchTab('lb'));
+  document.getElementById('achClose').addEventListener('click', closeAchLB);
+  panel.addEventListener('click', e => { if (e.target === panel) closeAchLB(); });
+}
+ensureAchLBPanel();
+
+function renderAchList() {
+  const el = document.getElementById('achList');
+  if (!el) return;
+  const unlocked = Object.keys(achUnlocked).length;
+  el.innerHTML = `<div style="text-align:center;margin-bottom:12px;color:#9a92b8;font-size:13px;">${I18N.t('ach_progress')} ${unlocked}/${ACHIEVEMENTS.length}</div>` +
+    ACHIEVEMENTS.map(a => {
+      const done = !!achUnlocked[a.id];
+      const title = I18N.lang === 'en' ? a.en : a.zh;
+      const desc = I18N.lang === 'en' ? a.desc_en : a.desc_zh;
+      return `<div style="display:flex;align-items:center;padding:10px;margin-bottom:6px;border-radius:10px;background:${done ? 'rgba(255,215,120,0.12)' : 'rgba(255,255,255,0.04)'};border:1px solid ${done ? 'rgba(255,215,120,0.3)' : 'rgba(255,255,255,0.08)'};">
+        <div style="width:36px;height:36px;border-radius:50%;background:${done ? 'radial-gradient(#fff6c9,#ffd54a 70%,#c98a1a)' : '#333'};margin-right:12px;display:flex;align-items:center;justify-content:center;color:${done ? '#7a4a10' : '#555'};font-weight:bold;font-size:18px;">${done ? '★' : '?'}</div>
+        <div style="flex:1;">
+          <div style="color:${done ? '#ffe08a' : '#888'};font-weight:bold;font-size:14px;">${title}</div>
+          <div style="color:${done ? '#c9c1e0' : '#666'};font-size:12px;margin-top:2px;">${desc} · +${a.reward}💰</div>
+        </div>
+      </div>`;
+    }).join('');
+}
+
+function renderLBList() {
+  const el = document.getElementById('lbList');
+  if (!el) return;
+  if (!leaderboard.length) {
+    el.innerHTML = `<div style="text-align:center;color:#9a92b8;padding:30px 0;">${I18N.t('no_records')}</div>`;
+    return;
+  }
+  el.innerHTML = leaderboard.map((r, i) => {
+    const rank = i + 1;
+    const date = new Date(r.ts).toISOString().slice(0, 10);
+    const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : ('#' + rank);
+    return `<div style="display:flex;align-items:center;padding:10px;margin-bottom:6px;border-radius:10px;background:rgba(255,255,255,0.04);">
+      <div style="width:36px;text-align:center;font-weight:bold;color:${rank <= 3 ? '#ffe08a' : '#9a92b8'};">${medal}</div>
+      <div style="flex:1;">
+        <div style="color:#fff;font-weight:bold;font-size:15px;">${r.score}</div>
+        <div style="color:#9a92b8;font-size:11px;margin-top:2px;">${date} · ${r.merges} merges · peak ${r.peak}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function showAchTab(t) {
+  const tabA = document.getElementById('tabAch');
+  const tabL = document.getElementById('tabLB');
+  const listA = document.getElementById('achList');
+  const listL = document.getElementById('lbList');
+  if (!tabA || !tabL || !listA || !listL) return;
+  if (t === 'ach') {
+    tabA.style.background = '#ffd76a'; tabA.style.color = '#3a2810';
+    tabL.style.background = 'rgba(255,255,255,0.08)'; tabL.style.color = '#e8e2f4';
+    listA.style.display = 'block'; listL.style.display = 'none';
+    renderAchList();
+  } else {
+    tabL.style.background = '#ffd76a'; tabL.style.color = '#3a2810';
+    tabA.style.background = 'rgba(255,255,255,0.08)'; tabA.style.color = '#e8e2f4';
+    listL.style.display = 'block'; listA.style.display = 'none';
+    renderLBList();
+  }
+}
+
+function openAchLB() {
+  const panel = document.getElementById('achLBPanel');
+  if (panel) { panel.style.display = 'flex'; showAchTab('ach'); }
+  if (typeof track === 'function') track('ach_open', { unlocked: Object.keys(achUnlocked).length });
+}
+function closeAchLB() {
+  const panel = document.getElementById('achLBPanel');
+  if (panel) panel.style.display = 'none';
+}
+
+// 离线召回：结算界面提示"明天再来+20"（用 localStorage 记录 lastPlay 日期）
+function offlineRecallBanner() {
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const last = localStorage.getItem('suikaLastPlay');
+    localStorage.setItem('suikaLastPlay', today);
+    if (last && last !== today) {
+      // 昨日或更早玩过 → 今日发一次回归奖励
+      const gapDays = Math.round((Date.parse(today) - Date.parse(last)) / 86400000);
+      if (gapDays >= 1) {
+        const reward = Math.min(50, 20 * gapDays);
+        earnCoins(reward);
+        if (typeof track === 'function') track('recall_reward', { gap: gapDays, reward: reward });
+      }
+    }
+  } catch (e) {}
+}
+offlineRecallBanner();
+
+// 结算面板顶部加"明天再来"提示
+function addOfflineRecallHint() {
+  // 已按需求隐藏「明天再来，登录送20」提示；离线召回奖励仍在 offlineRecallBanner 中静默发放
+}
+addOfflineRecallHint();
+
+// draw / step 再包一层：加成就 Toast
+const _origDrawLMN = draw;
+draw = function () { _origDrawLMN(); drawAchToast(); };
+const _origStepLMN = step;
+step = function (dt) { _origStepLMN(dt); updateAchToast(dt || (1 / 120)); };
+
+// 应用初始 i18n
+applyI18n();
+
+
+window.__sim = {
+  step: dt => step(dt || STEP),
+  drop, restart, resize,
+  aim: x => { if (pending) pending.x = clamp(x, radius(pending.level), W - radius(pending.level)); },
+  layout: () => ({ W, H, GROUND, DANGER, canvasScale, DPR,
+                   cssW: parseFloat(canvas.style.width), cssH: parseFloat(canvas.style.height),
+                   bufW: canvas.width, bufH: canvas.height }),
+  getState: () => ({ score, merges, balls: balls.length, gameOver, combo, tSec, started,
+                     dropCd, dangerTimer, best,
+                     maxLevel: balls.reduce((m, b) => Math.max(m, b.level), 0),
+                     overlapMax: (() => {
+                       let mx = 0;
+                       for (let i = 0; i < balls.length; i++) for (let j = i + 1; j < balls.length; j++) {
+                         const a = balls[i], b = balls[j];
+                         const d = Math.hypot(b.x - a.x, b.y - a.y);
+                         mx = Math.max(mx, (a.r + b.r) - d);
+                       }
+                       return mx;
+                     })(),
+                     // 稳态穿模：只看已静止(睡眠)且非刚生成的球——这才是玩家真正看到的堆叠画面
+                     overlapSettled: (() => {
+                       let mx = 0;
+                       for (let i = 0; i < balls.length; i++) for (let j = i + 1; j < balls.length; j++) {
+                         const a = balls[i], b = balls[j];
+                         if (!a.sleeping || !b.sleeping) continue;
+                         if (a.spawnT > 0 || b.spawnT > 0) continue;
+                         const d = Math.hypot(b.x - a.x, b.y - a.y);
+                         mx = Math.max(mx, (a.r + b.r) - d);
+                       }
+                       return mx;
+                     })(),
+                     sinceMerge: tSec - lastMergeAt,
+                     coins, inv: Object.assign({}, inv),
+                     bombArmed, hasSnapshot: !!undoSnapshot,
+                     outOfBounds: balls.filter(b => b.x - b.r < -1 || b.x + b.r > W + 1 || b.y + b.r > GROUND + 1).length }),
+  start: startGame,
+  forceOver: () => { gameOverNow(); return gameOver; },
+  // ---- 阶段G 道具钩子 ----
+  items: {
+    undo: useUndo,
+    swap: useSwap,
+    armBomb: armBomb,
+    bombAt: (x, y) => executeBomb(x, y),
+    // 炸掉最高处的果子（测试「救场」场景）
+    bombTop: () => {
+      let t = null;
+      for (const b of balls) if (b.released && (!t || b.y - b.r < t.y - t.r)) t = b;
+      return t ? executeBomb(t.x, t.y) : false;
+    },
+    grant: (kind, n) => { inv[kind] = (inv[kind] | 0) + (n || 1); saveWallet(); updateItemBar(); return inv[kind]; },
+    setCoins: n => { coins = n; saveWallet(); updateItemBar(); return coins; },
+    get: () => ({ coins, inv: Object.assign({}, inv), hasSnapshot: !!undoSnapshot, bombArmed }),
+    tap: kind => tapItem(kind, kind === 'undo' ? useUndo : (kind === 'bomb' ? armBomb : useSwap)),
+  },
+  // ---- 阶段H 变现钩子 ----
+  ads: {
+    config: AD_CONFIG,
+    // 自动化测试：切到同步 provider，广告瞬间「播完」
+    useInstant: () => { AD_CONFIG.provider = 'instant'; AD_CONFIG.minGapSec = 0; return adProviderName(); },
+    setProvider: p => { AD_CONFIG.provider = p; return adProviderName(); },
+    provider: () => adProviderName(),
+    get: () => ({
+      provider: adProviderName(), dayCount: adState.count, paused: adPaused, busy: adBusy,
+      reviveUsed, canRevive: canRevive(), x2Used, canX2: canX2(), runCoins,
+      reviveShown: btnReviveEl.style.display !== 'none',
+      x2Shown: btnX2El.style.display !== 'none',
+      shopOpen: shopPopEl.classList.contains('on'), shopKind,
+    }),
+    show: (placement, cb) => showRewarded(placement, cb),
+    revive: cb => showRewarded('revive', res => { if (res === 'ok') doRevive(); if (cb) cb(res); }),
+    x2: cb => showRewarded('coins_x2', res => { if (res === 'ok') doX2(); if (cb) cb(res); }),
+    openShop, shopBuy, shopAd: shopWatchAd, closeShop,
+    events: () => (window.__events || []).slice(),
+    clearEvents: () => { window.__events = []; },
+  },
+  // ---- 阶段I 留存钩子 ----
+  daily: {
+    open: openSheet, close: closeSheet,
+    sheet: () => ({ open: sheetOpen, kind: sheetKind, title: sheetTitleEl.textContent, html: sheetBodyEl.innerHTML }),
+    dayNum: () => dayNum(),
+    checkin: doCheckin,
+    double: doubleCheckin,
+    autoShow: () => maybeAutoCheckin(),
+    ci: () => ({ last: dailyState.last, streak: dailyState.streak, doubled: dailyState.doubled,
+                 slot: checkinSlot(), claimedToday: checkinClaimedToday(), canDouble: canDoubleCheckin() }),
+    // 测试用：把「上次签到」挪到 n 天前，模拟连签 / 断签
+    setLast: (daysAgo, streak) => { dailyState.last = dayNum() - daysAgo; dailyState.streak = streak | 0; dailyState.doubled = false; saveDaily(); updateMenuDots(); return dailyState.last; },
+    quests: () => ({ day: questState.day, bonus: questState.bonus,
+                     q: questState.q.map(r => { const d = questDef(r.id); return { id: r.id, type: d.type, need: d.need, reward: d.reward, prog: r.prog, done: questDone(r), claimed: r.claimed }; }),
+                     claimable: questClaimable(), bonusReady: questBonusReady() }),
+    bump: questBump, peak: questPeak,
+    claim: questClaim, bonus: questClaimBonus,
+    setQuests: ids => { questState = { day: dayNum(), q: ids.map(id => ({ id: id, prog: 0, claimed: false })), bonus: false }; questSave(); return questState.q.map(r => r.id); },
+    rollDay: () => { questState.day = -1; questRollDay(); return questState.q.map(r => r.id); },
+    skins: () => ({ cur: skinState.cur, owned: skinState.owned.slice(),
+                    fruits: FRUITS.map(f => [f.emoji, f.color]),
+                    all: SKINS.map(s => ({ id: s.id, cost: s.cost, own: ownSkin(s.id) })) }),
+    buySkin: buySkin, equipSkin: equipSkin, grantSkin: grantSkin,
+    dots: () => { updateMenuDots(); const n = document.querySelectorAll('[data-menu]'); const o = {}; for (let i = 0; i < n.length; i++) o[n[i].getAttribute('data-menu')] = n[i].classList.contains('dot'); return o; },
+  },
+  // ---- 阶段J 传播 / 埋点 / 引导钩子 ----
+  viral: {
+    // 埋点
+    tm: () => ({ endpoint: TELEMETRY.endpoint, uid: TM_UID, sid: TM_SID,
+                 queued: tmQueue.length, sent: tmSent, flushes: tmFlushes, dropped: tmDropped,
+                 last: tmLastPayload }),
+    tmConfig: TELEMETRY,
+    flush: r => tmFlush(r || 'test'),
+    events: () => (window.__events || []).slice(),
+    evNames: () => (window.__events || []).map(e => e.ev),
+    clearEvents: () => { window.__events = []; },
+    // 分享卡片
+    card: () => { const c = drawShareCard(); return c ? { w: c.width, h: c.height } : null; },
+    cardEl: () => drawShareCard(),
+    open: openShare, close: closeShare,
+    state: () => ({ open: shareOpen, day: shareState.day, count: shareState.count, total: shareState.total,
+                    rewardReady: shareRewardReady(), text: shareText(), link: inviteLink(),
+                    btnShown: btnShareEl ? btnShareEl.style.display !== 'none' : false,
+                    btnLabel: btnShareEl ? btnShareEl.textContent : '',
+                    reward: shareRewardEl ? shareRewardEl.textContent : '' }),
+    share: doShare, copy: doCopyLink, save: doSaveCard,
+    settle: ch => shareSettle(ch || 'test'),
+    rollDay: () => { shareState.day = ''; saveShare(); shareRollDay(); return shareState.count; },
+    // 裂变
+    ref: () => ({ from: refState.from, claimed: refState.claimed, code: myRefCode(), link: inviteLink() }),
+    claimRef: () => referralInit(),
+    resetRef: () => { refState = { from: '', claimed: false, sent: 0 }; saveRef(); },
+    // 新手引导
+    tut: () => ({ step: tutStep, done: tutDone, drops: tutDrops,
+                  shown: tutEl ? tutEl.classList.contains('on') : false,
+                  html: tutEl ? tutEl.innerHTML : '' }),
+    tutStart: tutStart,
+    tutReset: () => { tutDone = false; tutStep = 0; tutDrops = 0; try { localStorage.removeItem('suikaTut'); } catch (e) {} tutRender(); },
+  },
+  // ---- 阶段K 手感钩子 ----
+  juice: {
+    state: () => ({
+      badge: KJ.badge ? { count: KJ.badge.count, life: KJ.badge.life, maxLife: KJ.badge.maxLife } : null,
+      flies: KJ.coinFlies.length,
+      flyVal: KJ.coinFlies.reduce((s, c) => s + c.val, 0),
+      hudPulse: KJ.hudPulse, coinPulse: KJ.coinPulse,
+      slowmo: slowmo, shake: shake, flash: flash, hitstop: hitstop,
+    }),
+    trigger: (nx, ny, level, cmb, gain, jack) => onMergeJuice(nx || W/2, ny || 200, level | 0, cmb | 0, gain | 0, !!jack),
+    fly: (x, y, n) => { spawnCoinFly(x || W/2, y || 200, n | 0); return KJ.coinFlies.length; },
+    scorePulse: () => { KJ.hudPulse = 1; applyHudPulse(); return scoreEl.classList.contains('pulse'); },
+    coinPulse: () => { KJ.coinPulse = 1; applyHudPulse(); return coinCountEl.classList.contains('pulse'); },
+    reset: () => { KJ.badge = null; KJ.coinFlies.length = 0; KJ.hudPulse = 0; KJ.coinPulse = 0; },
+  },
+  // ---- 阶段L 成就 / 排行榜 ----
+  ach: {
+    state: () => ({
+      unlocked: Object.keys(achUnlocked).slice(),
+      count: Object.keys(achUnlocked).length,
+      total: ACHIEVEMENTS.length,
+      stats: Object.assign({}, stats),
+      lb: leaderboard.slice(),
+      toastActive: _achToastActive ? { id: _achToastActive.a.id, life: _achToastActive.life } : null,
+      queueLen: _achToastQueue.length,
+      // 已发放的成就奖励总金币（用于测试从金币里扣除）
+      bonusPaid: (function () {
+        let s = 0;
+        for (const a of ACHIEVEMENTS) if (achUnlocked[a.id]) s += a.reward;
+        return s;
+      })(),
+    }),
+    reset: () => {
+      achUnlocked = {}; saveAch();
+      stats = { totalMerges: 0, totalRuns: 0, peakLevel: 0, peakCombo: 0, bestScore: 0, shareCount: 0, signinStreak: 0, noItemBest: 0 };
+      saveStats();
+      leaderboard = []; saveLB();
+      _achToastQueue.length = 0; _achToastActive = null;
+    },
+    forceStats: patch => { Object.assign(stats, patch || {}); saveStats(); return Object.assign({}, stats); },
+    check: () => checkAchievements().map(a => a.id),
+    open: openAchLB,
+    close: closeAchLB,
+    panel: () => {
+      const p = document.getElementById('achLBPanel');
+      return { open: !!(p && p.style.display === 'flex'), html: p ? p.innerHTML.length : 0 };
+    },
+    achList: () => ACHIEVEMENTS.map(a => ({ id: a.id, zh: a.zh, en: a.en, reward: a.reward, unlocked: !!achUnlocked[a.id] })),
+  },
+  // ---- 阶段M 多语言 / 反作弊 ----
+  i18n: {
+    lang: () => I18N.lang,
+    t: k => I18N.t(k),
+    set: l => I18N.setLang(l),
+    toggle: () => I18N.toggle(),
+    apply: () => applyI18n(),
+    dict: () => I18N.dict,
+  },
+  security: {
+    sign: p => _sig(p),
+    verify: (p, s) => _sig(p) === s,
+    setSignedBest: v => { try { localStorage.setItem('suikaBest', String(v)); localStorage.setItem('suikaBest_sig', _sig(String(v))); best = v; } catch (e) {} },
+    tamperBest: v => { try { localStorage.setItem('suikaBest', String(v)); } catch (e) {} }, // 只改值不改签名
+    checkCoins: () => {
+      const raw = localStorage.getItem(STORE_KEY_COINS);
+      const sig = localStorage.getItem(STORE_KEY_COINS + '_sig');
+      return { raw: raw, sig: sig, valid: sig === _sig(raw || '') };
+    },
+    signedSet: signedSet,
+    signedGet: signedGet,
+  },
+  // ---- 阶段N 离线召回 ----
+  recall: {
+    setLastPlay: d => { try { localStorage.setItem('suikaLastPlay', d); } catch (e) {} },
+    getLastPlay: () => { try { return localStorage.getItem('suikaLastPlay'); } catch (e) { return null; } },
+    trigger: () => offlineRecallBanner(),
+    hint: () => { const h = document.getElementById('recallHint'); return h ? h.textContent : null; },
+  },
+};
+</script>
+
+  <div class="ad-slot" data-ad-slot="bannerBottom"></div>
+  <script src="../config.js"></script>
+  <script src="../ads.js"></script>
+<script>
+/* Web 版启动器：立即执行游戏主脚本，存档走 localStorage */
+FBStore.boot(function () {
+  var s = document.createElement('script');
+  s.textContent = document.getElementById('game-src').textContent;
+  document.body.appendChild(s);
+  /* 最高分 → Instant Games 排行榜 watermelon_score（在游戏自己的签名包装之后再包一层） */
+  var hook = document.createElement('script');
+  hook.textContent = "(function () { if (typeof gameOverNow === 'function') { var _orig = gameOverNow; gameOverNow = function () { _orig(); try { FBStore.submitScore('watermelon_score', best); } catch (e) {} }; } })();";
+  document.body.appendChild(hook);
+});
+</script>
+
+<script>
+/* Web 版扩展：游戏结束插屏位（占位）。在启动器已包装好的 gameOverNow
+   之外再包一层，未在 config.js 配置广告代码时为空操作，不影响游戏。 */
+(function () {
+  if (typeof gameOverNow === 'function') {
+    var _prev = gameOverNow;
+    gameOverNow = function () {
+      _prev();
+      if (window.Ads) Ads.interstitial('suika-gameover');
+    };
+  }
+})();
+</script>
+</body>
+</html>
